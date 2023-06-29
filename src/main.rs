@@ -1,28 +1,47 @@
 mod core;
 mod op;
+mod utils;
 mod warrior;
 
-const CORE_SIZE: usize = 8000;
+const CORE_SIZE: isize = 8;
 
-fn main() -> Result<(), (usize, String)> {
+const TEST_MODE: bool = true;
+
+fn main() -> Result<(), String> {
     rand::thread_rng();
+    let mut core_conf = core::CoreConfig::new(CORE_SIZE);
 
-    let core = core::Core::new(CORE_SIZE);
-    // let warrior_a = warrior::Warrior::create(14, CORE_SIZE);
-    // let warrior_b = warrior::Warrior::create(14, CORE_SIZE);
-
-    // core.deploy(warrior_a);
-    // core.deploy(warrior_b);
-
-    let imp = warrior::Warrior::parse(
-        "ADD #4, 3
+    if TEST_MODE {
+        let imp = warrior::Warrior::parse("MOV 0, -2".into(), "imp".into())?;
+        let bombarder = warrior::Warrior::parse(
+            "ADD #4, 3
         MOV 2, @2
         JMP -2
         DAT #0, #0"
-            .into(),
-    )?;
+                .into(),
+            "bombarder".into(),
+        )?;
 
-    println!("{imp:?}");
+        core_conf.deploy(imp, Some(0))?;
+    } else {
+        let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
+        let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);
+
+        core_conf.deploy(warrior_a, None)?;
+        core_conf.deploy(warrior_b, None)?;
+    }
+
+    let mut runtime = core_conf.brawl();
+
+    // println!("{:#?}", runtime);
+
+    for _ in 0..10 {
+        runtime.tick();
+        println!("state:");
+        runtime.print_state();
+    }
+
+    println!("{runtime:?}");
 
     Ok(())
 }

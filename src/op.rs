@@ -1,13 +1,15 @@
+use crate::{core::CorePtr, utils::modulo};
+
 #[derive(Clone, Copy, Debug)]
 pub enum Decrement {
     None,
     Predecrement,
-    Postdecrement,
+    Postincrement,
 }
 impl Decrement {
     fn get_random() -> Decrement {
         use Decrement::*;
-        [None, Predecrement, Postdecrement][rand::random::<usize>() % 3]
+        [None, Predecrement, Postincrement][rand::random::<usize>() % 3]
     }
 }
 
@@ -15,23 +17,63 @@ impl Decrement {
 pub enum Field {
     Direct(isize),
     Inmediate(isize),
-
     AIndirect(isize, Decrement),
     BIndirect(isize, Decrement),
 }
 impl Field {
-    fn get_random(ptr_range: isize, core_size: isize) -> Field {
+    fn get_random(ptr_range: isize, core_size: usize) -> Field {
         use Field::*;
         [
-            Direct(rand::random::<isize>() % ptr_range),
-            Inmediate(rand::random::<isize>() % core_size),
-            AIndirect(rand::random::<isize>() % ptr_range, Decrement::get_random()),
-            BIndirect(rand::random::<isize>() % ptr_range, Decrement::get_random()),
+            Direct(modulo(rand::random::<isize>(), ptr_range) as isize),
+            Inmediate(modulo(rand::random::<isize>(), core_size) as isize),
+            AIndirect(
+                modulo(rand::random::<isize>(), ptr_range) as isize,
+                Decrement::get_random(),
+            ),
+            BIndirect(
+                modulo(rand::random::<isize>(), ptr_range) as isize,
+                Decrement::get_random(),
+            ),
         ][rand::random::<usize>() % 4]
     }
 
+    pub fn get_val(&self) -> isize {
+        *match self {
+            Field::Direct(x) => x,
+            Field::Inmediate(x) => x,
+            Field::AIndirect(x, _) => x,
+            Field::BIndirect(x, _) => x,
+        }
+    }
+
+    pub fn set_val(&mut self, data: isize) {
+        *match self {
+            Field::Direct(x) => x,
+            Field::Inmediate(x) => x,
+            Field::AIndirect(x, _) => x,
+            Field::BIndirect(x, _) => x,
+        } = data;
+    }
+
+    fn decrement(&mut self) {
+        *match self {
+            Field::Direct(x) => x,
+            Field::Inmediate(x) => x,
+            Field::AIndirect(x, _) => x,
+            Field::BIndirect(x, _) => x,
+        } -= 1;
+    }
+
+    fn increment(&mut self) {
+        *match self {
+            Field::Direct(x) => x,
+            Field::Inmediate(x) => x,
+            Field::AIndirect(x, _) => x,
+            Field::BIndirect(x, _) => x,
+        } += 1;
+    }
+
     fn parse(line: String) -> Result<(Self, String), String> {
-        println!("parsing field from: \"{line}\"");
         let line = line.trim();
 
         if line == "" {
@@ -91,14 +133,14 @@ impl Field {
             } else if line.starts_with("}") {
                 match str::parse(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::AIndirect(i, Postdecrement);
+                        ret = Self::AIndirect(i, Postincrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with(">") {
                 match str::parse(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::BIndirect(i, Postdecrement);
+                        ret = Self::BIndirect(i, Postincrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
@@ -116,28 +158,91 @@ impl Field {
 
         Ok((ret, splited.collect::<Vec<&str>>().join(" ")))
     }
+
+    pub(crate) fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
+        match self {
+            Field::Direct(p) => CorePtr::Cell(ic + p),
+            Field::Inmediate(x) => CorePtr::ToVirtualDAT(*x),
+            Field::AIndirect(x, m) => {
+                if let Decrement::Predecrement = m {
+                    core[(ic + x) as usize].fields[0].decrement()
+                }
+
+                let ret = CorePtr::Cell(ic + core[(ic + x) as usize].fields[0].get_val());
+
+                if let Decrement::Postincrement = m {
+                    core[(ic + x) as usize].fields[0].increment();
+                }
+
+                ret
+            }
+            Field::BIndirect(x, m) => {
+                if let Decrement::Predecrement = m {
+                    core[(ic + x) as usize].fields[1].decrement()
+                }
+
+                let ret = CorePtr::Cell(ic + core[(ic + x) as usize].fields[1].get_val());
+
+                if let Decrement::Postincrement = m {
+                    core[(ic + x) as usize].fields[1].increment();
+                }
+
+                ret
+            }
+        }
+    }
+
+    fn print(&self) {
+        match self {
+            Field::Direct(x) => print!("{x}"),
+            Field::Inmediate(x) => print!("#{x}"),
+            Field::AIndirect(x, m) => match m {
+                Decrement::None => print!("*{x}"),
+                Decrement::Predecrement => print!("{{{x}"),
+                Decrement::Postincrement => print!("}}{x}"),
+            },
+            Field::BIndirect(x, m) => match m {
+                Decrement::None => print!("@{x}"),
+                Decrement::Predecrement => print!("<{x}"),
+                Decrement::Postincrement => print!(">{x}"),
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Operation {
+pub struct Instruction {
     pub code: OpCode,
     pub modifier: OpModifier,
-    pub a: Field,
-    pub b: Field,
+    pub fields: [Field; 2],
 }
 
-impl Operation {
-    pub fn get_random(ptr_range: isize, core_size: isize) -> Self {
+impl Instruction {
+    pub fn get_random(ptr_range: isize, core_size: usize) -> Self {
         Self {
             code: OpCode::get_random(),
             modifier: OpModifier::get_random(),
-            a: Field::get_random(ptr_range, core_size),
-            b: Field::get_random(ptr_range, core_size),
+            fields: [
+                Field::get_random(ptr_range, core_size),
+                Field::get_random(ptr_range, core_size),
+            ],
+        }
+    }
+
+    pub fn get_field_transmisions(&self) -> Vec<(usize, usize)> {
+        match self.modifier {
+            OpModifier::A => vec![(0, 0)],
+            OpModifier::B => vec![(1, 1)],
+            OpModifier::AB => vec![(0, 1)],
+            OpModifier::BA => vec![(1, 0)],
+            OpModifier::F => vec![(0, 0), (1, 1)],
+            OpModifier::X => vec![(0, 1), (1, 0)],
+            OpModifier::I => vec![(0, 0), (1, 1)],
         }
     }
 
     pub(crate) fn parse(line: String) -> Result<Self, String> {
-        let mut line = line.trim_start().to_string();
+        let line = line.trim_start().to_string();
 
         let (code, line) = OpCode::parse(line.into())?;
 
@@ -151,14 +256,22 @@ impl Operation {
 
         let line = line.trim_start().to_string();
 
-        let (b, line) = Field::parse(line.into())?;
+        let (b, _) = Field::parse(line.into())?;
 
         Ok(Self {
             code,
             modifier,
-            a,
-            b,
+            fields: [a, b],
         })
+    }
+
+    pub(crate) fn print_state(&self) {
+        self.code.print();
+        self.modifier.print();
+        print!(" ");
+        self.fields[0].print();
+        print!(" ");
+        self.fields[1].print();
     }
 }
 
@@ -208,7 +321,7 @@ impl OpModifier {
     }
 
     pub fn default() -> OpModifier {
-        return Self::F;
+        return Self::I;
     }
 
     fn parse(line: String) -> Result<(Self, String), String> {
@@ -231,6 +344,21 @@ impl OpModifier {
         } else {
             Ok((Self::default(), line))
         }
+    }
+
+    fn print(&self) {
+        print!(
+            "{}",
+            match self {
+                OpModifier::A => ".A",
+                OpModifier::B => ".B",
+                OpModifier::AB => ".AB",
+                OpModifier::BA => ".BA",
+                OpModifier::F => ".F",
+                OpModifier::X => ".X",
+                OpModifier::I => ".I",
+            },
+        );
     }
 }
 
@@ -350,5 +478,9 @@ impl OpCode {
         };
 
         Ok((code, line[3..].into()))
+    }
+
+    fn print(&self) {
+        print!("{self:?}");
     }
 }
