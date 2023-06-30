@@ -12,17 +12,17 @@ fn main() -> Result<(), String> {
     let mut core_conf = core::CoreConfig::new(CORE_SIZE);
 
     if TEST_MODE {
-        let imp = warrior::Warrior::parse("MOV 0, -2".into(), "imp".into())?;
-        let bombarder = warrior::Warrior::parse(
+        let imp = warrior::Warrior::parse("MOV 0, 1".into(), "Imp".into())?;
+        let dwarf = warrior::Warrior::parse(
             "ADD #4, 3
         MOV 2, @2
         JMP -2
         DAT #0, #0"
                 .into(),
-            "bombarder".into(),
+            "Dwarf".into(),
         )?;
 
-        core_conf.deploy(imp, Some(0))?;
+        core_conf.deploy(dwarf, Some(0))?;
     } else {
         let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
         let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);

@@ -229,15 +229,47 @@ impl Instruction {
         }
     }
 
-    pub fn get_field_transmisions(&self) -> Vec<(usize, usize)> {
+    pub fn get_field_transmisions(&self) -> (Vec<(usize, usize)>, bool) {
         match self.modifier {
-            OpModifier::A => vec![(0, 0)],
-            OpModifier::B => vec![(1, 1)],
-            OpModifier::AB => vec![(0, 1)],
-            OpModifier::BA => vec![(1, 0)],
-            OpModifier::F => vec![(0, 0), (1, 1)],
-            OpModifier::X => vec![(0, 1), (1, 0)],
-            OpModifier::I => vec![(0, 0), (1, 1)],
+            OpModifier::A => (vec![(0, 0)], false),
+            OpModifier::B => (vec![(1, 1)], false),
+            OpModifier::AB => (vec![(0, 1)], false),
+            OpModifier::BA => (vec![(1, 0)], false),
+            OpModifier::F => (vec![(0, 0), (1, 1)], false),
+            OpModifier::X => (vec![(0, 1), (1, 0)], false),
+            OpModifier::I => (vec![], true),
+            OpModifier::Default => {
+                use OpCode::*;
+                match self.code {
+                    DAT | NOP => (vec![], false),
+                    MOV | SEQ | SNE | CMP => {
+                        if let Field::Inmediate(_) = self.fields[0] {
+                            (vec![(0, 1)], false)
+                        } else if let Field::Inmediate(_) = self.fields[1] {
+                            (vec![(1, 1)], false)
+                        } else {
+                            (vec![], true)
+                        }
+                    }
+                    ADD | SUB | MUL | DIV | MOD => {
+                        if let Field::Inmediate(_) = self.fields[0] {
+                            (vec![(0, 1)], false)
+                        } else if let Field::Inmediate(_) = self.fields[1] {
+                            (vec![(1, 1)], false)
+                        } else {
+                            (vec![(0, 0), (1, 1)], false)
+                        }
+                    }
+                    SLT | LDP | STP => {
+                        if let Field::Inmediate(_) = self.fields[0] {
+                            (vec![(0, 1)], false)
+                        } else {
+                            (vec![(1, 1)], false)
+                        }
+                    }
+                    JMP | JMZ | JMN | DJN | SPL => (vec![(1, 1)], false),
+                }
+            }
         }
     }
 
@@ -313,15 +345,12 @@ pub enum OpModifier {
     F,
     X,
     I,
+    Default,
 }
 impl OpModifier {
     fn get_random() -> OpModifier {
         use OpModifier::*;
         [A, B, AB, BA, F, X, I][rand::random::<usize>() % 7]
-    }
-
-    pub fn default() -> OpModifier {
-        return Self::I;
     }
 
     fn parse(line: String) -> Result<(Self, String), String> {
@@ -342,7 +371,7 @@ impl OpModifier {
         } else if line.starts_with(".") {
             Err("stray dot, specting op modifier after it".into())
         } else {
-            Ok((Self::default(), line))
+            Ok((Self::Default, line))
         }
     }
 
@@ -357,6 +386,7 @@ impl OpModifier {
                 OpModifier::F => ".F",
                 OpModifier::X => ".X",
                 OpModifier::I => ".I",
+                OpModifier::Default => "",
             },
         );
     }

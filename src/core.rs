@@ -54,7 +54,20 @@ impl CoreRuntime {
                     }
                 }
             }
-            OpCode::ADD => todo!(),
+            OpCode::ADD => {
+                let src = field_a_solution;
+                let dst = field_b_solution;
+
+                if let OpModifier::I = instruction.modifier {
+                    let instruction = self.get_instruction_at(&src);
+                    self.set_instruction_at(&dst, instruction);
+                } else {
+                    for (i_src, i_dst) in instruction.get_field_transmisions() {
+                        let data = self.read_field(&src, i_src);
+                        self.write_field(&dst, i_dst, data);
+                    }
+                }
+            }
             OpCode::SUB => todo!(),
             OpCode::MUL => todo!(),
             OpCode::DIV => todo!(),
@@ -91,7 +104,7 @@ impl CoreRuntime {
             CorePtr::Cell(i) => self.core[modulo(i, self.core_size)],
             CorePtr::ToVirtualDAT(d) => Instruction {
                 code: OpCode::DAT,
-                modifier: OpModifier::default(),
+                modifier: OpModifier::Default,
                 fields: [Field::Inmediate(d), Field::Inmediate(d)],
             },
         }
@@ -145,7 +158,7 @@ impl CoreConfig {
             Instruction {
                 code: OpCode::DAT,
                 fields: [Field::Inmediate(0), Field::Inmediate(0)],
-                modifier: OpModifier::default(),
+                modifier: OpModifier::Default,
             };
             self.core_size as usize
         ];
