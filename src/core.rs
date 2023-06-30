@@ -44,11 +44,13 @@ impl CoreRuntime {
                 let src = field_a_solution;
                 let dst = field_b_solution;
 
-                if let OpModifier::I = instruction.modifier {
+                let (pipes, full) = instruction.get_field_transmisions();
+
+                if full {
                     let instruction = self.get_instruction_at(&src);
                     self.set_instruction_at(&dst, instruction);
                 } else {
-                    for (i_src, i_dst) in instruction.get_field_transmisions() {
+                    for (i_src, i_dst) in pipes {
                         let data = self.read_field(&src, i_src);
                         self.write_field(&dst, i_dst, data);
                     }
@@ -58,14 +60,12 @@ impl CoreRuntime {
                 let src = field_a_solution;
                 let dst = field_b_solution;
 
-                if let OpModifier::I = instruction.modifier {
-                    let instruction = self.get_instruction_at(&src);
-                    self.set_instruction_at(&dst, instruction);
-                } else {
-                    for (i_src, i_dst) in instruction.get_field_transmisions() {
-                        let data = self.read_field(&src, i_src);
-                        self.write_field(&dst, i_dst, data);
-                    }
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                for (i_src, i_dst) in pipes {
+                    let operand = self.read_field(&src, i_src);
+                    let old_value = self.read_field(&dst, i_dst);
+                    self.write_field(&dst, i_dst, old_value + operand);
                 }
             }
             OpCode::SUB => todo!(),

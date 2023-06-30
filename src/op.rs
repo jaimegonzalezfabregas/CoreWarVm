@@ -168,7 +168,7 @@ impl Field {
                     core[(ic + x) as usize].fields[0].decrement()
                 }
 
-                let ret = CorePtr::Cell(ic + core[(ic + x) as usize].fields[0].get_val());
+                let ret = CorePtr::Cell(ic + x + core[(ic + x) as usize].fields[0].get_val());
 
                 if let Decrement::Postincrement = m {
                     core[(ic + x) as usize].fields[0].increment();
@@ -181,7 +181,7 @@ impl Field {
                     core[(ic + x) as usize].fields[1].decrement()
                 }
 
-                let ret = CorePtr::Cell(ic + core[(ic + x) as usize].fields[1].get_val());
+                let ret = CorePtr::Cell(ic + x + core[(ic + x) as usize].fields[1].get_val());
 
                 if let Decrement::Postincrement = m {
                     core[(ic + x) as usize].fields[1].increment();
