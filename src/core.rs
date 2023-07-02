@@ -17,12 +17,14 @@ pub struct CoreConfig {
     warrior_data: Vec<(isize, Warrior)>,
 }
 
-pub enum CorePtr {
-    Cell(isize),
-    ToVirtualDAT(isize),
-}
+#[derive(Debug)]
+pub struct CorePtr(pub isize);
 
 impl CoreRuntime {
+    pub fn done(&self) -> bool {
+        self.warriors.len() == 0
+    }
+
     pub fn tick(&mut self) {
         if self.warriors.len() == 0 {
             return;
@@ -36,6 +38,8 @@ impl CoreRuntime {
 
         let mut die = false;
 
+        // println!("[debug]: instruction is {:?}", instruction);
+
         match instruction.code {
             OpCode::DAT => {
                 die = true;
@@ -44,9 +48,9 @@ impl CoreRuntime {
                 let src = field_a_solution;
                 let dst = field_b_solution;
 
-                let (pipes, full) = instruction.get_field_transmisions();
+                let (pipes, i_flag) = instruction.get_field_transmisions();
 
-                if full {
+                if i_flag {
                     let instruction = self.get_instruction_at(&src);
                     self.set_instruction_at(&dst, instruction);
                 } else {
@@ -63,16 +67,89 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
+                    // println!("[debug]: pipe from {} to {} ", i_src, i_dst);
                     let operand = self.read_field(&src, i_src);
                     let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value + operand);
+                    self.write_field(
+                        &dst,
+                        i_dst,
+                        modulo(old_value + operand, self.core_size) as isize,
+                    );
                 }
             }
-            OpCode::SUB => todo!(),
-            OpCode::MUL => todo!(),
-            OpCode::DIV => todo!(),
-            OpCode::MOD => todo!(),
-            OpCode::JMP => todo!(),
+            OpCode::SUB => {
+                let src = field_a_solution;
+                let dst = field_b_solution;
+
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                for (i_src, i_dst) in pipes {
+                    let operand = self.read_field(&src, i_src);
+                    let old_value = self.read_field(&dst, i_dst);
+                    self.write_field(
+                        &dst,
+                        i_dst,
+                        modulo(old_value - operand, self.core_size) as isize,
+                    );
+                }
+            }
+            OpCode::MUL => {
+                let src = field_a_solution;
+                let dst = field_b_solution;
+
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                for (i_src, i_dst) in pipes {
+                    let operand = self.read_field(&src, i_src);
+                    let old_value = self.read_field(&dst, i_dst);
+                    self.write_field(
+                        &dst,
+                        i_dst,
+                        modulo(old_value * operand, self.core_size) as isize,
+                    );
+                }
+            }
+            OpCode::DIV => {
+                let src = field_a_solution;
+                let dst = field_b_solution;
+
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                for (i_src, i_dst) in pipes {
+                    let operand = self.read_field(&src, i_src);
+                    let old_value = self.read_field(&dst, i_dst);
+                    if operand == 0 {
+                        die = true;
+                    } else {
+                        self.write_field(
+                            &dst,
+                            i_dst,
+                            modulo(old_value / operand, self.core_size) as isize,
+                        );
+                    }
+                }
+            }
+            OpCode::MOD => {
+                let src = field_a_solution;
+                let dst = field_b_solution;
+
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                for (i_src, i_dst) in pipes {
+                    let operand = self.read_field(&src, i_src);
+                    let old_value = self.read_field(&dst, i_dst);
+                    if operand == 0 {
+                        die = true;
+                    } else {
+                        self.write_field(
+                            &dst,
+                            i_dst,
+                            modulo(old_value / operand, self.core_size) as isize,
+                        );
+                    }
+                }
+            }
+            OpCode::JMP => (),
             OpCode::JMZ => todo!(),
             OpCode::JMN => todo!(),
             OpCode::DJN => todo!(),
@@ -87,7 +164,10 @@ impl CoreRuntime {
         }
 
         if let OpCode::JMP = instruction.code {
-            self.warriors[0].instruction_counter_jump(1, self.core.len() as isize);
+            self.warriors[0].instruction_counter_jump(
+                instruction.fields[0].get_val(),
+                self.core.len() as isize,
+            );
         } else {
             self.warriors[0].instruction_counter_jump(1, self.core.len() as isize);
         }
@@ -101,38 +181,31 @@ impl CoreRuntime {
 
     fn get_instruction_at(&self, ptr: &CorePtr) -> Instruction {
         match *ptr {
-            CorePtr::Cell(i) => self.core[modulo(i, self.core_size)],
-            CorePtr::ToVirtualDAT(d) => Instruction {
-                code: OpCode::DAT,
-                modifier: OpModifier::Default,
-                fields: [Field::Inmediate(d), Field::Inmediate(d)],
-            },
+            CorePtr(i) => self.core[modulo(i, self.core_size)],
         }
     }
 
     fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: Instruction) {
         match *ptr {
-            CorePtr::Cell(i) => self.core[modulo(i, self.core_size)] = instruction,
-            CorePtr::ToVirtualDAT(_) => (),
+            CorePtr(i) => self.core[modulo(i, self.core_size)] = instruction,
         };
     }
 
     fn read_field(&self, ptr: &CorePtr, i_field: usize) -> isize {
         match *ptr {
-            CorePtr::Cell(i) => self.core[modulo(i, self.core_size)].fields[i_field].get_val(),
-            CorePtr::ToVirtualDAT(d) => d,
+            CorePtr(i) => self.core[modulo(i, self.core_size)].fields[i_field].get_val(),
         }
     }
 
     fn write_field(&mut self, ptr: &CorePtr, i_field: usize, data: isize) {
         match *ptr {
-            CorePtr::Cell(i) => self.core[modulo(i, self.core_size)].fields[i_field].set_val(data),
-            CorePtr::ToVirtualDAT(_) => (),
+            CorePtr(i) => self.core[modulo(i, self.core_size)].fields[i_field].set_val(data),
         }
     }
 
     pub(crate) fn print_state(&self) {
         for (i, cell) in self.core.iter().enumerate() {
+            print!("{i:0>6}: ");
             cell.print_state();
             for warr in self.warriors.iter() {
                 warr.print_state_at(i);
@@ -157,7 +230,7 @@ impl CoreConfig {
         let mut core = vec![
             Instruction {
                 code: OpCode::DAT,
-                fields: [Field::Inmediate(0), Field::Inmediate(0)],
+                fields: [Field::Direct(0), Field::Direct(0)],
                 modifier: OpModifier::Default,
             };
             self.core_size as usize
@@ -179,7 +252,7 @@ impl CoreConfig {
     }
     pub fn deploy(
         &mut self,
-        warrior: Warrior,
+        mut warrior: Warrior,
         input_position: Option<isize>,
     ) -> Result<(), String> {
         let w_len = warrior.body.len() as isize;
@@ -197,6 +270,8 @@ impl CoreConfig {
                     return Err("Forced deploy position was already ocupied".into());
                 }
             }
+
+            warrior.new_thread(warrior.org + deploy_position);
 
             self.warrior_data.push((deploy_position, warrior));
 
@@ -220,6 +295,8 @@ impl CoreConfig {
                 }
 
                 if valid_pos {
+                    warrior.new_thread(warrior.org + deploy_position);
+
                     self.warrior_data.push((deploy_position, warrior));
 
                     return Ok(());

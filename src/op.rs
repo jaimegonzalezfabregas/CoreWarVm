@@ -1,6 +1,6 @@
 use crate::{core::CorePtr, utils::modulo};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Decrement {
     None,
     Predecrement,
@@ -13,12 +13,32 @@ impl Decrement {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq)]
 pub enum Field {
+    Unknown,
     Direct(isize),
     Inmediate(isize),
     AIndirect(isize, Decrement),
     BIndirect(isize, Decrement),
+}
+
+impl PartialEq for Field {
+    fn eq(&self, other: &Self) -> bool {
+        if let Self::Unknown = self {
+            return true;
+        }
+        if let Self::Unknown = other {
+            return true;
+        }
+
+        match (self, other) {
+            (Self::Direct(l0), Self::Direct(r0)) => l0 == r0,
+            (Self::Inmediate(l0), Self::Inmediate(r0)) => l0 == r0,
+            (Self::AIndirect(l0, l1), Self::AIndirect(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::BIndirect(l0, l1), Self::BIndirect(r0, r1)) => l0 == r0 && l1 == r1,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 impl Field {
     fn get_random(ptr_range: isize, core_size: usize) -> Field {
@@ -43,6 +63,7 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
+            Field::Unknown => panic!(),
         }
     }
 
@@ -52,6 +73,7 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
+            Field::Unknown => panic!(),
         } = data;
     }
 
@@ -61,6 +83,7 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
+            Field::Unknown => panic!(),
         } -= 1;
     }
 
@@ -70,14 +93,15 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
+            Field::Unknown => panic!(),
         } += 1;
     }
 
-    fn parse(line: String) -> Result<(Self, String), String> {
+    fn parse(line: String, core_size: isize) -> Result<(Self, String), String> {
         let line = line.trim();
 
         if line == "" {
-            return Ok((Field::Direct(0), "".into()));
+            return Ok((Field::Unknown, "".into()));
         }
 
         let mut splited = line.split(",");
@@ -88,66 +112,69 @@ impl Field {
             use Decrement::*;
 
             let line = line.trim();
+
+            // println!("parsing field from {}", line);
+
             if line.starts_with("#") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::Inmediate(i);
+                        ret = Self::Inmediate(modulo(i, core_size) as isize);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with("$") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::Direct(i);
+                        ret = Self::Direct(modulo(i, core_size) as isize);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with("*") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::AIndirect(i, None);
+                        ret = Self::AIndirect(modulo(i, core_size) as isize, None);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with("@") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::BIndirect(i, None);
+                        ret = Self::BIndirect(modulo(i, core_size) as isize, None);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with("{") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::AIndirect(i, Predecrement);
+                        ret = Self::AIndirect(modulo(i, core_size) as isize, Predecrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with("<") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::BIndirect(i, Predecrement);
+                        ret = Self::BIndirect(modulo(i, core_size) as isize, Predecrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
-            } else if line.starts_with("}") {
-                match str::parse(line[1..].into()) {
+            } else if line.starts_with(r"}") {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::AIndirect(i, Postincrement);
+                        ret = Self::AIndirect(modulo(i, core_size) as isize, Postincrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else if line.starts_with(">") {
-                match str::parse(line[1..].into()) {
+                match str::parse::<isize>(line[1..].into()) {
                     Ok(i) => {
-                        ret = Self::BIndirect(i, Postincrement);
+                        ret = Self::BIndirect(modulo(i, core_size) as isize, Postincrement);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
             } else {
-                match str::parse(line) {
+                match str::parse::<isize>(line) {
                     Ok(i) => {
-                        ret = Self::Direct(i);
+                        ret = Self::Direct(modulo(i, core_size) as isize);
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
@@ -160,15 +187,16 @@ impl Field {
     }
 
     pub(crate) fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
-        match self {
-            Field::Direct(p) => CorePtr::Cell(ic + p),
-            Field::Inmediate(x) => CorePtr::ToVirtualDAT(*x),
+        let ret = match self {
+            Field::Unknown => panic!(),
+            Field::Direct(p) => CorePtr(ic + p),
+            Field::Inmediate(_) => CorePtr(ic),
             Field::AIndirect(x, m) => {
                 if let Decrement::Predecrement = m {
                     core[(ic + x) as usize].fields[0].decrement()
                 }
 
-                let ret = CorePtr::Cell(ic + x + core[(ic + x) as usize].fields[0].get_val());
+                let ret = CorePtr(ic + x + core[(ic + x) as usize].fields[0].get_val());
 
                 if let Decrement::Postincrement = m {
                     core[(ic + x) as usize].fields[0].increment();
@@ -181,7 +209,7 @@ impl Field {
                     core[(ic + x) as usize].fields[1].decrement()
                 }
 
-                let ret = CorePtr::Cell(ic + x + core[(ic + x) as usize].fields[1].get_val());
+                let ret = CorePtr(ic + x + core[(ic + x) as usize].fields[1].get_val());
 
                 if let Decrement::Postincrement = m {
                     core[(ic + x) as usize].fields[1].increment();
@@ -189,11 +217,16 @@ impl Field {
 
                 ret
             }
-        }
+        };
+
+        // println!("[debug]: {self:?} was solved to {ret:?}");
+
+        ret
     }
 
     fn print(&self) {
         match self {
+            Field::Unknown => print!("unk"),
             Field::Direct(x) => print!("{x}"),
             Field::Inmediate(x) => print!("#{x}"),
             Field::AIndirect(x, m) => match m {
@@ -210,7 +243,7 @@ impl Field {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Instruction {
     pub code: OpCode,
     pub modifier: OpModifier,
@@ -237,7 +270,7 @@ impl Instruction {
             OpModifier::BA => (vec![(1, 0)], false),
             OpModifier::F => (vec![(0, 0), (1, 1)], false),
             OpModifier::X => (vec![(0, 1), (1, 0)], false),
-            OpModifier::I => (vec![], true),
+            OpModifier::I => (vec![(0, 0), (1, 1)], true),
             OpModifier::Default => {
                 use OpCode::*;
                 match self.code {
@@ -248,7 +281,7 @@ impl Instruction {
                         } else if let Field::Inmediate(_) = self.fields[1] {
                             (vec![(1, 1)], false)
                         } else {
-                            (vec![], true)
+                            (vec![(0, 0), (1, 1)], true)
                         }
                     }
                     ADD | SUB | MUL | DIV | MOD => {
@@ -273,8 +306,18 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn parse(line: String) -> Result<Self, String> {
+    pub(crate) fn parse(line: String, core_size: isize) -> Result<Option<Self>, String> {
+        let line = match line.find(";") {
+            Some(x) => line[0..x].to_string(),
+            None => line,
+        };
+
+
         let line = line.trim_start().to_string();
+
+        if line == "" {
+            return Ok(None);
+        }
 
         let (code, line) = OpCode::parse(line.into())?;
 
@@ -284,17 +327,23 @@ impl Instruction {
 
         let line = line.trim_start().to_string();
 
-        let (a, line) = Field::parse(line.into())?;
+        let (mut a, line) = Field::parse(line.into(), core_size)?;
 
         let line = line.trim_start().to_string();
 
-        let (b, _) = Field::parse(line.into())?;
+        let (mut b, _) = Field::parse(line.into(), core_size)?;
 
-        Ok(Self {
+        if let OpCode::DAT = code {
+            if let Field::Unknown = b {
+                (b, a) = (a, b);
+            }
+        }
+
+        Ok(Some(Self {
             code,
             modifier,
             fields: [a, b],
-        })
+        }))
     }
 
     pub(crate) fn print_state(&self) {
@@ -336,7 +385,7 @@ JMP, JMZ, JMN, DJN, SPL
 
 */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OpModifier {
     A,
     B,
@@ -433,7 +482,7 @@ NOP
 
 */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OpCode {
     DAT, // — data
     MOV, // — move (copies data from address1 to address2)

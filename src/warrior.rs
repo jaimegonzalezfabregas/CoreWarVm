@@ -2,12 +2,17 @@ use crate::{op::Instruction, utils::modulo};
 
 #[derive(Debug, Clone)]
 pub struct Warrior {
+    pub org: isize,
     pub name: String,
     pub body: Vec<Instruction>,
     pub instruction_counters: Vec<isize>,
 }
 
 impl Warrior {
+    pub fn new_thread(&mut self, ptr: isize) {
+        self.instruction_counters.push(ptr);
+    }
+
     pub fn random_create(size: isize, core_size: isize) -> Self {
         let mut body = vec![];
 
@@ -16,9 +21,10 @@ impl Warrior {
         }
 
         Warrior {
+            org: modulo(rand::random::<usize>(), size) as isize,
             name: "random".into(),
             body,
-            instruction_counters: vec![modulo(rand::random::<usize>(), size) as isize],
+            instruction_counters: vec![],
         }
     }
 
@@ -32,7 +38,7 @@ impl Warrior {
         self.instruction_counters[0] = modulo(self.instruction_counters[0], core_size) as isize;
     }
 
-    pub fn parse(str: String, name: String) -> Result<Self, String> {
+    pub fn parse(str: String, name: String, core_size: isize) -> Result<Self, String> {
         let str = str.to_uppercase();
 
         let mut body = vec![];
@@ -46,16 +52,18 @@ impl Warrior {
                     return Err(format!("linea {i}: multiple ORG pseudoinstructions found"));
                 }
             } else {
-                match Instruction::parse(line.into()) {
-                    Ok(op) => body.push(op),
+                match Instruction::parse(line.into(), core_size) {
+                    Ok(None) => (),
+                    Ok(Some(op)) => body.push(op),
                     Err(err) => return Err(format!("linea {i}: {err}")),
                 }
             }
         }
 
         Ok(Self {
+            org: start.unwrap_or_else(|| 0),
             name,
-            instruction_counters: vec![start.unwrap_or_else(|| 0)],
+            instruction_counters: vec![],
             body,
         })
     }

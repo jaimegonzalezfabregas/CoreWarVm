@@ -1,9 +1,12 @@
 mod core;
 mod op;
+mod test;
 mod utils;
 mod warrior;
 
-const CORE_SIZE: isize = 8;
+use std::process::Command;
+
+const CORE_SIZE: isize = 40;
 
 const TEST_MODE: bool = true;
 
@@ -12,17 +15,18 @@ fn main() -> Result<(), String> {
     let mut core_conf = core::CoreConfig::new(CORE_SIZE);
 
     if TEST_MODE {
-        let imp = warrior::Warrior::parse("MOV 0, 1".into(), "Imp".into())?;
-        let dwarf = warrior::Warrior::parse(
-            "ADD #4, 3
+        let _imp = warrior::Warrior::parse("MOV 0, 1".into(), "Imp".into(), CORE_SIZE)?;
+        let _dwarf = warrior::Warrior::parse(
+            "  ADD #4, 3        
         MOV 2, @2
-        JMP -2
+        JMP -2, 0
         DAT #0, #0"
                 .into(),
             "Dwarf".into(),
+            CORE_SIZE,
         )?;
 
-        core_conf.deploy(dwarf, Some(0))?;
+        core_conf.deploy(_dwarf, Some(0))?;
     } else {
         let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
         let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);
@@ -35,13 +39,15 @@ fn main() -> Result<(), String> {
 
     // println!("{:#?}", runtime);
 
-    for _ in 0..10 {
+    for _ in 0..20 {
         runtime.tick();
         println!("state:");
         runtime.print_state();
+        let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
+        if runtime.done() {
+            break;
+        }
     }
-
-    println!("{runtime:?}");
 
     Ok(())
 }
