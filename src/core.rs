@@ -40,6 +40,8 @@ impl CoreRuntime {
 
         // println!("[debug]: instruction is {:?}", instruction);
 
+        let mut next_instruction = instruction_counter + 1;
+
         match instruction.code {
             OpCode::DAT => {
                 die = true;
@@ -149,28 +151,115 @@ impl CoreRuntime {
                     }
                 }
             }
-            OpCode::JMP => (),
-            OpCode::JMZ => todo!(),
-            OpCode::JMN => todo!(),
-            OpCode::DJN => todo!(),
-            OpCode::SPL => todo!(),
-            OpCode::CMP => todo!(),
-            OpCode::SEQ => todo!(),
-            OpCode::SNE => todo!(),
-            OpCode::SLT => todo!(),
+            OpCode::JMP => next_instruction = field_a_solution.0,
+            OpCode::JMZ => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = true;
+
+                for (_, i_dst) in pipes {
+                    if self.read_field(&field_b_solution, i_dst) != 0 {
+                        jump = false;
+                    }
+                }
+
+                if jump {
+                    next_instruction = field_a_solution.0;
+                }
+            }
+            OpCode::JMN => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = false;
+
+                for (_, i_dst) in pipes {
+                    if self.read_field(&field_b_solution, i_dst) != 0 {
+                        jump = true;
+                    }
+                }
+
+                if jump {
+                    next_instruction = field_a_solution.0;
+                }
+            }
+            OpCode::DJN => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = false;
+
+                for (_, i_dst) in pipes {
+                    let val = self.read_field(&field_b_solution, i_dst) - 1;
+                    self.write_field(&field_b_solution, i_dst, val);
+
+                    if val != 0 {
+                        jump = true;
+                    }
+                }
+
+                if jump {
+                    next_instruction = field_a_solution.0;
+                }
+            }
+            OpCode::SPL => {
+                self.warriors[0].new_thread(field_a_solution.0);
+            }
+            OpCode::CMP | OpCode::SEQ => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = true;
+
+                for (i_src, i_dst) in pipes {
+                    if self.read_field(&field_b_solution, i_dst)
+                        != self.read_field(&field_a_solution, i_src)
+                    {
+                        jump = false;
+                    }
+                }
+
+                if jump {
+                    next_instruction += 1;
+                }
+            }
+            OpCode::SNE => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = false;
+
+                for (i_src, i_dst) in pipes {
+                    if self.read_field(&field_b_solution, i_dst)
+                        != self.read_field(&field_a_solution, i_src)
+                    {
+                        jump = true;
+                    }
+                }
+
+                if jump {
+                    next_instruction += 1;
+                }
+            }
+            OpCode::SLT => {
+                let (pipes, _) = instruction.get_field_transmisions();
+
+                let mut jump = false;
+
+                for (i_src, i_dst) in pipes {
+                    if self.read_field(&field_a_solution, i_src)
+                        < self.read_field(&field_b_solution, i_dst)
+                    {
+                        jump = true;
+                    }
+                }
+
+                if jump {
+                    next_instruction += 1;
+                }
+            }
             OpCode::LDP => todo!(),
             OpCode::STP => todo!(),
-            OpCode::NOP => todo!(),
+            OpCode::NOP => (),
         }
 
-        if let OpCode::JMP = instruction.code {
-            self.warriors[0].instruction_counter_jump(
-                instruction.fields[0].get_val(),
-                self.core.len() as isize,
-            );
-        } else {
-            self.warriors[0].instruction_counter_jump(1, self.core.len() as isize);
-        }
+        self.warriors[0].set_instruction_counter(next_instruction, self.core.len() as isize);
 
         if die {
             self.warriors.remove(0);

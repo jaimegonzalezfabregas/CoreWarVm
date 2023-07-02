@@ -1,6 +1,3 @@
-use std::fs;
-
-use crate::{op::Instruction, CORE_SIZE};
 
 pub fn modulo<T: TryInto<isize>, Q: TryInto<isize>>(dividend: T, divisor: Q) -> usize {
     let i_divisor = unsafe { TryInto::<isize>::try_into(divisor).unwrap_unchecked() };

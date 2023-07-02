@@ -29,13 +29,13 @@ impl Warrior {
     }
 
     pub fn get_next_instruction_counter(&mut self) -> isize {
+        let ret = self.instruction_counters[0];
         self.instruction_counters.rotate_left(1);
-        self.instruction_counters[0]
+        ret
     }
 
-    pub fn instruction_counter_jump(&mut self, acc: isize, core_size: isize) {
-        self.instruction_counters[0] += acc;
-        self.instruction_counters[0] = modulo(self.instruction_counters[0], core_size) as isize;
+    pub fn set_instruction_counter(&mut self, val: isize, core_size: isize) {
+        self.instruction_counters[0] = modulo(val, core_size) as isize;
     }
 
     pub fn parse(str: String, name: String, core_size: isize) -> Result<Self, String> {
