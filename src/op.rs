@@ -13,33 +13,14 @@ impl Decrement {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Field {
-    Unknown,
     Direct(isize),
     Inmediate(isize),
     AIndirect(isize, Decrement),
     BIndirect(isize, Decrement),
 }
 
-impl PartialEq for Field {
-    fn eq(&self, other: &Self) -> bool {
-        if let Self::Unknown = self {
-            return true;
-        }
-        if let Self::Unknown = other {
-            return true;
-        }
-
-        match (self, other) {
-            (Self::Direct(l0), Self::Direct(r0)) => l0 == r0,
-            (Self::Inmediate(l0), Self::Inmediate(r0)) => l0 == r0,
-            (Self::AIndirect(l0, l1), Self::AIndirect(r0, r1)) => l0 == r0 && l1 == r1,
-            (Self::BIndirect(l0, l1), Self::BIndirect(r0, r1)) => l0 == r0 && l1 == r1,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
 impl Field {
     fn get_random(ptr_range: isize, core_size: usize) -> Field {
         use Field::*;
@@ -63,7 +44,6 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-            Field::Unknown => panic!(),
         }
     }
 
@@ -73,7 +53,6 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-            Field::Unknown => panic!(),
         } = data;
     }
 
@@ -83,7 +62,6 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-            Field::Unknown => panic!(),
         } -= 1;
     }
 
@@ -93,15 +71,14 @@ impl Field {
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-            Field::Unknown => panic!(),
         } += 1;
     }
 
-    fn parse(line: String, core_size: isize) -> Result<(Self, String), String> {
+    fn parse(line: String, core_size: isize) -> Result<(Option<Self>, String), String> {
         let line = line.trim();
 
         if line == "" {
-            return Ok((Field::Unknown, "".into()));
+            return Ok((None, "".into()));
         }
 
         let mut splited = line.split(",");
@@ -180,15 +157,14 @@ impl Field {
                 }
             }
         } else {
-            return Err("cant parse a field from empty string".into());
+            return Ok((None, "".into()));
         }
 
-        Ok((ret, splited.collect::<Vec<&str>>().join(" ")))
+        Ok((Some(ret), splited.collect::<Vec<&str>>().join(" ")))
     }
 
-    pub(crate) fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
+    pub(crate) fn solve(&self, core: &mut Vec<RunnableInstruction>, ic: isize) -> CorePtr {
         let ret = match self {
-            Field::Unknown => panic!(),
             Field::Direct(p) => CorePtr(ic + p),
             Field::Inmediate(_) => CorePtr(ic),
             Field::AIndirect(x, m) => {
@@ -226,7 +202,6 @@ impl Field {
 
     fn print(&self) {
         match self {
-            Field::Unknown => print!("unk"),
             Field::Direct(x) => print!("{x}"),
             Field::Inmediate(x) => print!("#{x}"),
             Field::AIndirect(x, m) => match m {
@@ -244,13 +219,20 @@ impl Field {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Instruction {
+pub struct RunnableInstruction {
     pub code: OpCode,
     pub modifier: OpModifier,
     pub fields: [Field; 2],
 }
 
-impl Instruction {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReadOnlyInstruction {
+    pub code: OpCode,
+    pub modifier: OpModifier,
+    pub fields: [Option<Field>; 2],
+}
+
+impl RunnableInstruction {
     pub fn get_random(ptr_range: isize, core_size: usize) -> Self {
         Self {
             code: OpCode::get_random(),
@@ -312,6 +294,61 @@ impl Instruction {
             None => line,
         };
 
+        let line = line.trim_start().to_string();
+
+        if line == "" {
+            return Ok(None);
+        }
+
+        let (code, line) = OpCode::parse(line.into())?;
+
+        let line = line.trim_start().to_string();
+
+        let (modifier, line) = OpModifier::parse(line.into())?;
+
+        let line = line.trim_start().to_string();
+
+        let (mut a, line) = Field::parse(line.into(), core_size)?;
+
+        let line = line.trim_start().to_string();
+
+        let (mut b, _) = Field::parse(line.into(), core_size)?;
+
+        let a = if let Some(a) = a {
+            a
+        } else {
+            return Err("missing field a".into());
+        };
+
+        let b = if let Some(b) = b {
+            b
+        } else {
+            return Err("missing field b".into());
+        };
+
+        Ok(Some(Self {
+            code,
+            modifier,
+            fields: [a, b],
+        }))
+    }
+
+    pub(crate) fn print_state(&self) {
+        self.code.print();
+        self.modifier.print();
+        print!(" ");
+        self.fields[0].print();
+        print!(" ");
+        self.fields[1].print();
+    }
+}
+
+impl ReadOnlyInstruction {
+    pub(crate) fn parse(line: String, core_size: isize) -> Result<Option<Self>, String> {
+        let line = match line.find(";") {
+            Some(x) => line[0..x].to_string(),
+            None => line,
+        };
 
         let line = line.trim_start().to_string();
 
@@ -334,7 +371,7 @@ impl Instruction {
         let (mut b, _) = Field::parse(line.into(), core_size)?;
 
         if let OpCode::DAT = code {
-            if let Field::Unknown = b {
+            if let None = b {
                 (b, a) = (a, b);
             }
         }
@@ -345,14 +382,14 @@ impl Instruction {
             fields: [a, b],
         }))
     }
-
-    pub(crate) fn print_state(&self) {
-        self.code.print();
-        self.modifier.print();
-        print!(" ");
-        self.fields[0].print();
-        print!(" ");
-        self.fields[1].print();
+}
+impl From<RunnableInstruction> for ReadOnlyInstruction {
+    fn from(value: RunnableInstruction) -> Self {
+        return Self {
+            code: value.code,
+            modifier: value.modifier,
+            fields: [Some(value.fields[0]), Some(value.fields[1])],
+        };
     }
 }
 
@@ -553,7 +590,7 @@ impl OpCode {
         } else if line.starts_with("NOP") {
             OpCode::NOP
         } else {
-            return Err("Unrecognizeable opcode".into());
+            return Err(format!("parsing opcode from {line} failed"));
         };
 
         Ok((code, line[3..].into()))

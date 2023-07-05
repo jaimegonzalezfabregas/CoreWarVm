@@ -3,7 +3,12 @@
 mod tests {
     use core::panic;
 
-    use crate::{core::CoreConfig, test::parse_ares_dump, warrior::Warrior};
+    use crate::{
+        core::CoreConfig,
+        op::{ReadOnlyInstruction, RunnableInstruction},
+        test::parse_ares_dump,
+        warrior::Warrior,
+    };
 
     #[test]
     fn test_dwarf() {
@@ -34,7 +39,7 @@ mod tests {
 
         let sim_result = runtime.core;
 
-        let res = parse_ares_dump("test_dwarf_8610_check.red");
+        let res = parse_ares_dump("src/test/test_dwarf_8610_check.red");
 
         println!("checking len");
         assert_eq!(sim_result.len(), res.len());
@@ -42,10 +47,10 @@ mod tests {
         for i in 0..8000 {
             // println!("checking pos {i} \n{:?}\n{:?}", sim_result[i], res[i]);
             println!("checking pos {i}");
-            assert_eq!(sim_result[i], res[i]);
+            assert_eq!(
+                <RunnableInstruction as Into<ReadOnlyInstruction>>::into(sim_result[i]),
+                res[i]
+            );
         }
-
-        println!("checking full");
-        assert_eq!(sim_result, res);
     }
 }

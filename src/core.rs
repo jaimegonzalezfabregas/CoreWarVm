@@ -1,5 +1,5 @@
 use crate::{
-    op::{Field, Instruction, OpCode, OpModifier},
+    op::{Field, OpCode, OpModifier, RunnableInstruction},
     utils::modulo,
     warrior::Warrior,
 };
@@ -7,7 +7,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CoreRuntime {
     pub core_size: isize,
-    pub core: Vec<Instruction>,
+    pub core: Vec<RunnableInstruction>,
     pub warriors: Vec<Warrior>,
 }
 #[derive(Debug, Clone)]
@@ -268,13 +268,13 @@ impl CoreRuntime {
         }
     }
 
-    fn get_instruction_at(&self, ptr: &CorePtr) -> Instruction {
+    fn get_instruction_at(&self, ptr: &CorePtr) -> RunnableInstruction {
         match *ptr {
             CorePtr(i) => self.core[modulo(i, self.core_size)],
         }
     }
 
-    fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: Instruction) {
+    fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: RunnableInstruction) {
         match *ptr {
             CorePtr(i) => self.core[modulo(i, self.core_size)] = instruction,
         };
@@ -317,7 +317,7 @@ impl CoreConfig {
         println!("brawl called to {self:#?}!");
 
         let mut core = vec![
-            Instruction {
+            RunnableInstruction {
                 code: OpCode::DAT,
                 fields: [Field::Direct(0), Field::Direct(0)],
                 modifier: OpModifier::Default,
@@ -366,7 +366,7 @@ impl CoreConfig {
 
             return Ok(());
         } else {
-            loop {
+            for _ in 0..self.core_size * 2 {
                 let deploy_position = modulo(rand::random::<isize>(), self.core_size) as isize;
                 let mut valid_pos = true;
 
@@ -391,6 +391,8 @@ impl CoreConfig {
                     return Ok(());
                 }
             }
+
+            Err("Core is likely full of warriors allready, cant deploy any more".into())
         }
     }
 }

@@ -4,14 +4,33 @@ mod test;
 mod utils;
 mod warrior;
 
+use crate::core::CoreConfig;
 use std::process::Command;
+
+use warrior::Warrior;
 
 const CORE_SIZE: isize = 40;
 
 const TEST_MODE: bool = true;
 
 fn main() -> Result<(), String> {
-    rand::thread_rng();
+    let mut core_conf = CoreConfig::new(8000);
+
+    let warrior1 = Warrior::random_create(1, 8000);
+    let warrior2 = Warrior::random_create(1, 8000);
+
+
+    core_conf.deploy(warrior1, None).unwrap();
+    core_conf.deploy(warrior2, None).unwrap();
+
+    let mut runtime = core_conf.brawl();
+
+    for _ in 0..10000 {
+        runtime.tick();
+    }
+
+    return Ok(());
+
     let mut core_conf = core::CoreConfig::new(CORE_SIZE);
 
     if TEST_MODE {

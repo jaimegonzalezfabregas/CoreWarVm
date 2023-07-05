@@ -1,10 +1,10 @@
-use crate::{op::Instruction, utils::modulo};
+use crate::{ utils::modulo, op::RunnableInstruction};
 
 #[derive(Debug, Clone)]
 pub struct Warrior {
     pub org: isize,
     pub name: String,
-    pub body: Vec<Instruction>,
+    pub body: Vec<RunnableInstruction>,
     pub instruction_counters: Vec<isize>,
 }
 
@@ -17,7 +17,11 @@ impl Warrior {
         let mut body = vec![];
 
         for _ in 0..size {
-            body.push(Instruction::get_random(size, core_size as usize))
+            let inst = RunnableInstruction::get_random(size, core_size as usize);
+
+            println!("{inst:?}");
+
+            body.push(inst)
         }
 
         Warrior {
@@ -45,14 +49,15 @@ impl Warrior {
         let mut start = None;
 
         for (i, line) in str.split('\n').enumerate() {
-            if line == "ORG" {
+            let line = line.trim();
+            if line.starts_with("ORG") {
                 if let None = start {
                     start = Some(i as isize);
                 } else {
                     return Err(format!("linea {i}: multiple ORG pseudoinstructions found"));
                 }
             } else {
-                match Instruction::parse(line.into(), core_size) {
+                match RunnableInstruction::parse(line.into(), core_size) {
                     Ok(None) => (),
                     Ok(Some(op)) => body.push(op),
                     Err(err) => return Err(format!("linea {i}: {err}")),
