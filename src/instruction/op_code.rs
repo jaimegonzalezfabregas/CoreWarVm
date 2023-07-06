@@ -1,4 +1,3 @@
-
 /*
 
 DAT
@@ -60,8 +59,8 @@ pub enum OpCode {
     SEQ, // — skip if equal (compares two instructions, and skips the next instruction if they are equal)
     SNE, // — skip if not equal (compares two instructions, and skips the next instruction if they aren't equal)
     SLT, // — skip if lower than (compares two values, and skips the next instruction if the first is lower than the second)
-    LDP, // — load from p-space (loads a number from private storage space)
-    STP, // — save to p-space (saves a number to private storage space)
+    // LDP, // — load from p-space (loads a number from private storage space)
+    // STP, // — save to p-space (saves a number to private storage space)
     NOP, // — no operation (does nothing)
 }
 impl OpCode {
@@ -69,7 +68,7 @@ impl OpCode {
         use OpCode::*;
         [
             DAT, MOV, ADD, SUB, DAT, MOV, ADD, SUB, MUL, DIV, MOD, JMP, JMZ, JMN, DJN, SPL, CMP,
-            SEQ, SNE, SLT, LDP, STP, NOP,
+            SEQ, SNE, SLT, NOP, // LDP, STP,
         ]
         .choose(&mut rand::thread_rng())
         .unwrap()
@@ -109,10 +108,10 @@ impl OpCode {
             OpCode::SNE
         } else if line.starts_with("SLT") {
             OpCode::SLT
-        } else if line.starts_with("LDP") {
-            OpCode::LDP
-        } else if line.starts_with("STP") {
-            OpCode::STP
+        // } else if line.starts_with("LDP") {
+        //     OpCode::LDP
+        // } else if line.starts_with("STP") {
+        //     OpCode::STP
         } else if line.starts_with("NOP") {
             OpCode::NOP
         } else {
@@ -122,7 +121,7 @@ impl OpCode {
         Ok((code, line[3..].into()))
     }
 
-   pub fn print(&self) {
+    pub fn print(&self) {
         print!("{self:?}");
     }
 }

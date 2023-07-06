@@ -2,7 +2,7 @@
 
 mod tests {
     use crate::{
-        core::CoreConfig, instruction::runnable_instruction::RunnableInstruction,
+        core::CoreConfig, instruction::instruction::Instruction,
         test::tests::{parse_ares_dump, ReadOnlyInstruction}, warrior::Warrior,
     };
 
@@ -33,7 +33,7 @@ mod tests {
             // println!("checking pos {i} \n{:?}\n{:?}", sim_result[i], res[i]);
             println!("checking pos {i}");
             assert_eq!(
-                <RunnableInstruction as Into<ReadOnlyInstruction>>::into(sim_result[i]),
+                <Instruction as Into<ReadOnlyInstruction>>::into(sim_result[i]),
                 res[i]
             );
         }

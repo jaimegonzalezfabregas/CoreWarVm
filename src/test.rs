@@ -2,13 +2,14 @@ mod test_dwarf;
 mod test_imp;
 mod test_normal_run;
 mod test_warrior_colision;
+pub mod test_chang_vs_mice;
 
 #[cfg(test)]
 mod tests {
 
     use std::fs;
 
-    use crate::instruction::runnable_instruction::RunnableInstruction;
+    use crate::instruction::instruction::Instruction;
     use crate::instruction::{op_code::OpCode, op_modifier::OpModifier};
 
     pub fn parse_ares_dump(file_path: &str) -> Vec<ReadOnlyInstruction> {
@@ -98,8 +99,8 @@ mod tests {
             }))
         }
     }
-    impl From<RunnableInstruction> for ReadOnlyInstruction {
-        fn from(value: RunnableInstruction) -> Self {
+    impl From<Instruction> for ReadOnlyInstruction {
+        fn from(value: Instruction) -> Self {
             return Self {
                 code: value.code,
                 modifier: value.modifier,

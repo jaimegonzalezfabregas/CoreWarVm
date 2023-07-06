@@ -1,11 +1,15 @@
-use crate::{warrior::Warrior, instruction::{runnable_instruction::RunnableInstruction, op_code::OpCode, field::Field, op_modifier::OpModifier}, utils::modulo};
-
-
+use crate::{
+    instruction::{
+        field::Field, instruction::Instruction, op_code::OpCode, op_modifier::OpModifier,
+    },
+    utils::modulo,
+    warrior::Warrior,
+};
 
 #[derive(Debug)]
 pub struct CoreRuntime {
     pub core_size: isize,
-    pub core: Vec<RunnableInstruction>,
+    pub core: Vec<Instruction>,
     pub warriors: Vec<Warrior>,
 }
 #[derive(Debug, Clone)]
@@ -252,27 +256,31 @@ impl CoreRuntime {
                     next_instruction += 1;
                 }
             }
-            OpCode::LDP => todo!(),
-            OpCode::STP => todo!(),
+            // OpCode::LDP => todo!(),
+            // OpCode::STP => todo!(),
             OpCode::NOP => (),
         }
 
         self.warriors[0].set_instruction_counter(next_instruction, self.core.len() as isize);
 
         if die {
+            self.warriors[0].kill_thread();
+        }
+
+        if self.warriors[0].dead() {
             self.warriors.remove(0);
         } else {
             self.warriors.rotate_left(1);
         }
     }
 
-    fn get_instruction_at(&self, ptr: &CorePtr) -> RunnableInstruction {
+    fn get_instruction_at(&self, ptr: &CorePtr) -> Instruction {
         match *ptr {
             CorePtr(i) => self.core[modulo(i, self.core_size)],
         }
     }
 
-    fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: RunnableInstruction) {
+    fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: Instruction) {
         match *ptr {
             CorePtr(i) => self.core[modulo(i, self.core_size)] = instruction,
         };
@@ -312,10 +320,9 @@ impl CoreConfig {
     }
 
     pub fn brawl(&self) -> CoreRuntime {
-        println!("brawl called to {self:#?}!");
 
         let mut core = vec![
-            RunnableInstruction {
+            Instruction {
                 code: OpCode::DAT,
                 fields: [Field::Direct(0), Field::Direct(0)],
                 modifier: OpModifier::Default,

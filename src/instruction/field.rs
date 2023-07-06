@@ -1,8 +1,8 @@
 use rand::Rng;
 
-use crate::{utils::modulo, core::CorePtr};
+use crate::{core::CorePtr, utils::modulo};
 
-use super::{decrement::Decrement, runnable_instruction::RunnableInstruction};
+use super::{decrement::Decrement, instruction::Instruction};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Field {
@@ -154,7 +154,7 @@ impl Field {
         Ok((Some(ret), splited.collect::<Vec<&str>>().join(" ")))
     }
 
-    pub fn solve(&self, core: &mut Vec<RunnableInstruction>, ic: isize) -> CorePtr {
+    pub fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
         let ret = match self {
             Field::Direct(p) => CorePtr(ic + p),
             Field::Inmediate(_) => CorePtr(ic),
@@ -176,7 +176,8 @@ impl Field {
                     core[(ic + x) as usize].fields[1].decrement()
                 }
 
-                let ret = CorePtr(ic + x + core[(ic + x) as usize].fields[1].get_val());
+                let ret =
+                    CorePtr(ic + x + core[modulo(ic + x, core.len()) as usize].fields[1].get_val());
 
                 if let Decrement::Postincrement = m {
                     core[(ic + x) as usize].fields[1].increment();
@@ -206,5 +207,9 @@ impl Field {
                 Decrement::Postincrement => print!(">{x}"),
             },
         }
+    }
+
+    pub(crate) fn default() -> Field {
+        Self::Direct(0)
     }
 }

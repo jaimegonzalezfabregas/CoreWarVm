@@ -1,13 +1,12 @@
-use rand::{ Rng};
+use rand::Rng;
 
-use crate::{instruction::runnable_instruction::RunnableInstruction, utils::modulo};
-
+use crate::{instruction::instruction::Instruction, utils::modulo};
 
 #[derive(Debug, Clone)]
 pub struct Warrior {
     pub org: isize,
     pub name: String,
-    pub body: Vec<RunnableInstruction>,
+    pub body: Vec<Instruction>,
     pub instruction_counters: Vec<isize>,
 }
 
@@ -22,7 +21,7 @@ impl Warrior {
         for _ in 0..size {
             println!("creating random instruction");
 
-            let inst = RunnableInstruction::get_random(size, core_size);
+            let inst = Instruction::get_random(size, core_size);
 
             println!("{inst:?}");
 
@@ -66,7 +65,7 @@ impl Warrior {
                     return Err(format!("linea {i}: multiple ORG pseudoinstructions found"));
                 }
             } else {
-                match RunnableInstruction::parse(line.into(), core_size) {
+                match Instruction::parse(line.into(), core_size) {
                     Ok(None) => (),
                     Ok(Some(op)) => body.push(op),
                     Err(err) => return Err(format!("linea {i}: {err}")),
@@ -88,5 +87,14 @@ impl Warrior {
                 print!(" < {}", self.name);
             }
         }
+    }
+
+    pub(crate) fn kill_thread(&mut self) {
+        let last_i = self.instruction_counters.len() - 1;
+        self.instruction_counters.remove(last_i);
+    }
+
+    pub(crate) fn dead(&self) -> bool {
+        self.instruction_counters.len() == 0
     }
 }
