@@ -2,25 +2,22 @@ use crate::{
     instruction::{
         field::Field, instruction::Instruction, op_code::OpCode, op_modifier::OpModifier,
     },
-    utils::modulo,
+    utils::{modulo, ModUsize},
     warrior::Warrior,
 };
 
 #[derive(Debug)]
 pub struct CoreRuntime {
-    pub core_size: isize,
-    pub core: Vec<Instruction>,
+    pub core_size: usize,
+    core: Vec<Instruction>,
     pub warriors: Vec<Warrior>,
 }
 #[derive(Debug, Clone)]
 
 pub struct CoreConfig {
-    core_size: isize,
-    warrior_data: Vec<(isize, Warrior)>,
+    core_size: usize,
+    warrior_data: Vec<(ModUsize, Warrior)>,
 }
-
-#[derive(Debug)]
-pub struct CorePtr(pub isize);
 
 impl CoreRuntime {
     pub fn done(&self) -> bool {
@@ -34,10 +31,10 @@ impl CoreRuntime {
 
         let instruction_counter = self.warriors[0].get_next_instruction_counter();
 
-        let instruction = self.core[instruction_counter as usize];
+        let instruction = &self.get_instruction_at(&instruction_counter);
 
-        let field_a_solution = instruction.fields[0].solve(&mut self.core, instruction_counter);
-        let field_b_solution = instruction.fields[1].solve(&mut self.core, instruction_counter);
+        let field_a_solution = instruction.fields[0].solve(self, instruction_counter);
+        let field_b_solution = instruction.fields[1].solve(self, instruction_counter);
 
         print!("warrior {} is going to execute ", self.warriors[0].name);
 
@@ -49,7 +46,7 @@ impl CoreRuntime {
 
         // println!("[debug]: instruction is {:?}", instruction);
 
-        let mut next_instruction = instruction_counter + 1;
+        let mut next_instruction = instruction_counter.inc(1);
 
         match instruction.code {
             OpCode::DAT => {
@@ -63,10 +60,10 @@ impl CoreRuntime {
 
                 if i_flag {
                     let instruction = self.get_instruction_at(&src);
-                    self.set_instruction_at(&dst, instruction);
+                    self.set_instruction_at(&dst, instruction.clone());
                 } else {
                     for (i_src, i_dst) in pipes {
-                        let data = self.read_field(&src, i_src);
+                        let data = self.get_field(&src, i_src);
                         self.write_field(&dst, i_dst, data);
                     }
                 }
@@ -79,9 +76,9 @@ impl CoreRuntime {
 
                 for (i_src, i_dst) in pipes {
                     // println!("[debug]: pipe from {} to {} ", i_src, i_dst);
-                    let operand = self.read_field(&src, i_src);
-                    let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value + operand);
+                    let operand = self.get_field(&src, i_src).clone();
+                    let old_value = self.get_field(&dst, i_dst).clone();
+                    self.write_field(&dst, i_dst, &(old_value + operand));
                 }
             }
             OpCode::SUB => {
@@ -91,9 +88,9 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.read_field(&src, i_src);
-                    let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value - operand);
+                    let operand = self.get_field(&src, i_src).clone();
+                    let old_value = self.get_field(&dst, i_dst).clone();
+                    self.write_field(&dst, i_dst, &(old_value - operand));
                 }
             }
             OpCode::MUL => {
@@ -103,9 +100,9 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.read_field(&src, i_src);
-                    let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value * operand);
+                    let operand = self.get_field(&src, i_src).clone();
+                    let old_value = self.get_field(&dst, i_dst).clone();
+                    self.write_field(&dst, i_dst, &(old_value * operand));
                 }
             }
             OpCode::DIV => {
@@ -115,12 +112,12 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.read_field(&src, i_src);
-                    let old_value = self.read_field(&dst, i_dst);
+                    let operand = self.get_field(&src, i_src).clone();
+                    let old_value = self.get_field(&dst, i_dst).clone();
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(&dst, i_dst, old_value / operand);
+                        self.write_field(&dst, i_dst, &(old_value / operand));
                     }
                 }
             }
@@ -131,29 +128,33 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.read_field(&src, i_src);
-                    let old_value = self.read_field(&dst, i_dst);
-                    if operand == 0 {
+                    let operand = self.get_field(&src, i_src);
+                    let old_value = self.get_field(&dst, i_dst);
+                    if *operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(&dst, i_dst, old_value / operand);
+                        self.write_field(
+                            &dst,
+                            i_dst,
+                            &ModUsize::new(old_value.val % operand.val, operand.congruence),
+                        );
                     }
                 }
             }
-            OpCode::JMP => next_instruction = field_a_solution.0,
+            OpCode::JMP => next_instruction = field_a_solution,
             OpCode::JMZ => {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 let mut jump = true;
 
                 for (_, i_dst) in pipes {
-                    if self.read_field(&field_b_solution, i_dst) != 0 {
+                    if *self.get_field(&field_b_solution, i_dst) != 0 {
                         jump = false;
                     }
                 }
 
                 if jump {
-                    next_instruction = field_a_solution.0;
+                    next_instruction = field_a_solution;
                 }
             }
             OpCode::JMN => {
@@ -162,13 +163,13 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (_, i_dst) in pipes {
-                    if self.read_field(&field_b_solution, i_dst) != 0 {
+                    if *self.get_field(&field_b_solution, i_dst) != 0 {
                         jump = true;
                     }
                 }
 
                 if jump {
-                    next_instruction = field_a_solution.0;
+                    next_instruction = field_a_solution;
                 }
             }
             OpCode::DJN => {
@@ -177,8 +178,8 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (_, i_dst) in pipes {
-                    let val = self.read_field(&field_b_solution, i_dst) - 1;
-                    self.write_field(&field_b_solution, i_dst, val);
+                    let val = *self.get_field(&field_b_solution, i_dst) - 1;
+                    self.write_field(&field_b_solution, i_dst, &val);
 
                     if val != 0 {
                         jump = true;
@@ -186,11 +187,12 @@ impl CoreRuntime {
                 }
 
                 if jump {
-                    next_instruction = field_a_solution.0;
+                    next_instruction = field_a_solution;
                 }
             }
             OpCode::SPL => {
-                self.warriors[0].new_thread(field_a_solution.0);
+                println!("creating new thread at: {:?}", field_a_solution);
+                self.warriors[0].new_thread(field_a_solution);
             }
             OpCode::CMP | OpCode::SEQ => {
                 let (pipes, _) = instruction.get_field_transmisions();
@@ -198,15 +200,15 @@ impl CoreRuntime {
                 let mut jump = true;
 
                 for (i_src, i_dst) in pipes {
-                    if self.read_field(&field_b_solution, i_dst)
-                        != self.read_field(&field_a_solution, i_src)
+                    if self.get_field(&field_b_solution, i_dst)
+                        != self.get_field(&field_a_solution, i_src)
                     {
                         jump = false;
                     }
                 }
 
                 if jump {
-                    next_instruction += 1;
+                    next_instruction = next_instruction.inc(1);
                 }
             }
             OpCode::SNE => {
@@ -215,15 +217,15 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (i_src, i_dst) in pipes {
-                    if self.read_field(&field_b_solution, i_dst)
-                        != self.read_field(&field_a_solution, i_src)
+                    if self.get_field(&field_b_solution, i_dst)
+                        != self.get_field(&field_a_solution, i_src)
                     {
                         jump = true;
                     }
                 }
 
                 if jump {
-                    next_instruction += 1;
+                    next_instruction = next_instruction.inc(1);
                 }
             }
             OpCode::SLT => {
@@ -232,15 +234,15 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (i_src, i_dst) in pipes {
-                    if self.read_field(&field_a_solution, i_src)
-                        < self.read_field(&field_b_solution, i_dst)
+                    if self.get_field(&field_a_solution, i_src).val
+                        < self.get_field(&field_b_solution, i_dst).val
                     {
                         jump = true;
                     }
                 }
 
                 if jump {
-                    next_instruction += 1;
+                    next_instruction = next_instruction.inc(1);
                 }
             }
             // OpCode::LDP => todo!(),
@@ -248,7 +250,7 @@ impl CoreRuntime {
             OpCode::NOP => (),
         }
 
-        self.warriors[0].set_instruction_counter(next_instruction, self.core.len() as isize);
+        self.warriors[0].set_instruction_counter(next_instruction);
 
         if die {
             self.warriors[0].kill_thread();
@@ -261,33 +263,27 @@ impl CoreRuntime {
         }
     }
 
-    fn get_instruction_at(&self, ptr: &CorePtr) -> Instruction {
-        match *ptr {
-            CorePtr(i) => self.core[modulo(i, self.core_size)],
-        }
+    pub fn get_instruction_at(&self, ptr: &ModUsize) -> &Instruction {
+        &self.core[ptr.val]
     }
 
-    fn set_instruction_at(&mut self, ptr: &CorePtr, instruction: Instruction) {
-        match *ptr {
-            CorePtr(i) => self.core[modulo(i, self.core_size)] = instruction,
-        };
+    fn set_instruction_at(&mut self, ptr: &ModUsize, instruction: Instruction) {
+        self.core[ptr.val] = instruction;
     }
 
-    fn read_field(&self, ptr: &CorePtr, i_field: usize) -> isize {
-        match *ptr {
-            CorePtr(i) => self.core[modulo(i, self.core_size)].fields[i_field].get_val(),
-        }
+    fn get_field(&self, ptr: &ModUsize, i_field: usize) -> &ModUsize {
+        self.core[ptr.val].fields[i_field].get_val()
     }
 
-    fn write_field(&mut self, ptr: &CorePtr, i_field: usize, data: isize) {
-        match *ptr {
-            CorePtr(i) => {
-                self.core[modulo(i, self.core_size)].fields[i_field].set_val(data, self.core_size)
-            }
-        }
+    fn write_field(&mut self, ptr: &ModUsize, i_field: usize, data: &ModUsize) {
+        *self.get_field(ptr, i_field) = data.clone()
     }
 
     pub(crate) fn print_state(&self, range: Option<std::ops::Range<usize>>) {
+        for w in &self.warriors {
+            println!("{}: {:?}", w.name, w.instruction_counters)
+        }
+
         let range = if let Some(range) = range {
             range
         } else {
@@ -309,7 +305,7 @@ impl CoreRuntime {
 }
 
 impl CoreConfig {
-    pub fn new(core_size: isize) -> Self {
+    pub fn new(core_size: usize) -> Self {
         Self {
             core_size,
             warrior_data: vec![],
@@ -320,7 +316,10 @@ impl CoreConfig {
         let mut core = vec![
             Instruction {
                 code: OpCode::DAT,
-                fields: [Field::Direct(0), Field::Direct(0)],
+                fields: [
+                    Field::Direct(ModUsize::new(0, self.core_size)),
+                    Field::Direct(ModUsize::new(0, self.core_size))
+                ],
                 modifier: OpModifier::Default,
             };
             self.core_size as usize
@@ -328,7 +327,7 @@ impl CoreConfig {
 
         for (deploy_position, warrior) in self.warrior_data.iter() {
             for (i, op) in warrior.body.iter().enumerate() {
-                core[modulo(*deploy_position + i as isize, self.core_size)] = *op;
+                core[modulo(deploy_position.val + i, self.core_size)] = *op;
             }
         }
 
@@ -343,49 +342,38 @@ impl CoreConfig {
     pub fn deploy(
         &mut self,
         mut warrior: Warrior,
-        input_position: Option<isize>,
+        input_position: Option<ModUsize>,
     ) -> Result<(), String> {
-        let w_len = warrior.body.len() as isize;
+        let w_len = warrior.body.len();
         let core_size = self.core_size;
 
         if let Some(deploy_position) = input_position {
             for (position, warrior) in self.warrior_data.iter() {
-                if check_segment_colision(
-                    deploy_position,
-                    w_len,
-                    *position,
-                    warrior.body.len() as isize,
-                    core_size,
-                ) {
+                if check_segment_colision(&deploy_position, w_len, position, warrior.body.len()) {
                     return Err("Forced deploy position was already ocupied".into());
                 }
             }
 
-            warrior.new_thread(warrior.org + deploy_position);
+            warrior.new_thread(deploy_position + warrior.org);
 
             self.warrior_data.push((deploy_position, warrior));
 
             return Ok(());
         } else {
             for _ in 0..self.core_size * 2 {
-                let deploy_position = modulo(rand::random::<isize>(), self.core_size) as isize;
+                let deploy_position = ModUsize::rand(core_size, 0..core_size);
                 let mut valid_pos = true;
 
                 for (position, warrior) in self.warrior_data.iter() {
-                    if check_segment_colision(
-                        deploy_position,
-                        w_len,
-                        *position,
-                        warrior.body.len() as isize,
-                        core_size,
-                    ) {
+                    if check_segment_colision(&deploy_position, w_len, position, warrior.body.len())
+                    {
                         valid_pos = false;
                         break;
                     }
                 }
 
                 if valid_pos {
-                    warrior.new_thread(warrior.org + deploy_position);
+                    warrior.new_thread(deploy_position + warrior.org);
 
                     self.warrior_data.push((deploy_position, warrior));
 
@@ -399,19 +387,18 @@ impl CoreConfig {
 }
 
 fn check_segment_colision(
-    start_a: isize,
-    len_a: isize,
-    start_b: isize,
-    len_b: isize,
-    congruence: isize,
+    start_a: &ModUsize,
+    len_a: usize,
+    start_b: &ModUsize,
+    len_b: usize,
 ) -> bool {
     if len_a < len_b {
-        check_segment_colision(start_b, len_b, start_a, len_a, congruence)
+        check_segment_colision(&start_b, len_b, &start_a, len_a)
     } else {
         // len_a > len_b
-        let n_start_b = (start_b - start_a) % congruence;
-        let n_end_b = (n_start_b + len_b) % congruence;
+        let n_start_b = start_b.inc(-(start_a.val as isize));
+        let n_end_b = start_b.inc(len_b as isize);
 
-        (n_start_b >= 0 && n_start_b <= len_b) || (n_end_b >= 0 && n_end_b <= len_b)
+        (n_start_b.val >= 0 && n_start_b.val <= len_b) || (n_end_b.val >= 0 && n_end_b.val <= len_b)
     }
 }

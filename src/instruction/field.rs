@@ -1,36 +1,42 @@
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 
-use crate::{core::CorePtr, utils::modulo};
+use crate::{
+    core::CoreRuntime,
+    utils::{modulo, ModUsize},
+};
 
-use super::{decrement::Decrement, instruction::Instruction};
+use super::decrement::Decrement;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Field {
-    Direct(isize),
-    Inmediate(isize),
-    AIndirect(isize, Decrement),
-    BIndirect(isize, Decrement),
+    Direct(ModUsize),
+    Inmediate(ModUsize),
+    AIndirect(ModUsize, Decrement),
+    BIndirect(ModUsize, Decrement),
 }
 
 impl Field {
-    pub fn get_random(ptr_range: isize, core_size: isize) -> Field {
+    pub fn get_random(ptr_range: usize, core_size: usize) -> Field {
         use Field::*;
         [
-            Direct(rand::thread_rng().gen_range(0..ptr_range)),
-            Inmediate(rand::thread_rng().gen_range(0..core_size)),
+            Direct(ModUsize::rand(core_size, 0..core_size)),
+            Inmediate(ModUsize::rand(core_size, 0..core_size)),
             AIndirect(
-                rand::thread_rng().gen_range(0..ptr_range),
+                ModUsize::rand(core_size, 0..core_size),
                 Decrement::get_random(),
             ),
             BIndirect(
-                rand::thread_rng().gen_range(0..ptr_range),
+                ModUsize::rand(core_size, 0..core_size),
                 Decrement::get_random(),
             ),
-        ][rand::random::<usize>() % 4]
+        ]
+        .choose(&mut rand::thread_rng())
+        .unwrap()
+        .clone()
     }
 
-    pub fn get_val(&self) -> isize {
-        *match self {
+    pub fn get_val(&self) -> &ModUsize {
+        match self {
             Field::Direct(x) => x,
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
@@ -38,24 +44,31 @@ impl Field {
         }
     }
 
-    pub fn set_val(&mut self, data: isize, core_size: isize) {
+    pub fn set_val(&mut self, data: ModUsize) {
         *match self {
             Field::Direct(x) => x,
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-        } = modulo(data, core_size) as isize;
+        } = data;
     }
 
-    fn decrement(&mut self, core_size: isize) {
-        self.set_val(self.get_val() - 1, core_size)
+    fn decrement(&mut self, core_size: usize) {
+        *self.get_val() -= 1
     }
 
-    fn increment(&mut self, core_size: isize) {
-        self.set_val(self.get_val() + 1, core_size)
+    fn increment(&mut self, core_size: usize) {
+        *self.get_val() += 1
     }
 
-    pub fn parse(line: String, core_size: isize) -> Result<(Option<Self>, String), String> {
+    fn num_parse(line: &str, core_size: usize) -> Result<ModUsize, String> {
+        match str::parse::<isize>(line.into()) {
+            Ok(i) => Ok(ModUsize::new(i, core_size)),
+            Err(_) => Err("parsing number failed".into()),
+        }
+    }
+
+    pub fn parse(line: String, core_size: usize) -> Result<(Option<Self>, String), String> {
         let line = line.trim();
 
         if line == "" {
@@ -74,65 +87,25 @@ impl Field {
             // println!("parsing field from {}", line);
 
             if line.starts_with("#") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::Inmediate(modulo(i, core_size) as isize);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::Inmediate(Self::num_parse(&line[..1], core_size)?);
             } else if line.starts_with("$") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::Direct(modulo(i, core_size) as isize);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::Direct(Self::num_parse(&line[..1], core_size)?);
             } else if line.starts_with("*") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::AIndirect(modulo(i, core_size) as isize, None);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, None);
             } else if line.starts_with("@") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::BIndirect(modulo(i, core_size) as isize, None);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, None);
             } else if line.starts_with("{") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::AIndirect(modulo(i, core_size) as isize, Predecrement);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, Predecrement);
             } else if line.starts_with("<") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::BIndirect(modulo(i, core_size) as isize, Predecrement);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, Predecrement);
             } else if line.starts_with(r"}") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::AIndirect(modulo(i, core_size) as isize, Postincrement);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, Postincrement);
             } else if line.starts_with(">") {
-                match str::parse::<isize>(line[1..].into()) {
-                    Ok(i) => {
-                        ret = Self::BIndirect(modulo(i, core_size) as isize, Postincrement);
-                    }
-                    Err(_) => return Err("parsing number failed".into()),
-                }
+                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, Postincrement);
             } else {
                 match str::parse::<isize>(line) {
                     Ok(i) => {
-                        ret = Self::Direct(modulo(i, core_size) as isize);
+                        ret = Self::Direct(ModUsize::new(i, core_size));
                     }
                     Err(_) => return Err("parsing number failed".into()),
                 }
@@ -144,34 +117,38 @@ impl Field {
         Ok((Some(ret), splited.collect::<Vec<&str>>().join(" ")))
     }
 
-    pub fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
-        let core_size = core.len() as isize;
-        let ret = match self {
-            Field::Direct(p) => CorePtr(ic + p),
-            Field::Inmediate(_) => CorePtr(ic),
+    pub fn solve(&self, core: &mut CoreRuntime, ic: ModUsize) -> ModUsize {
+        let ret = match *self {
+            Field::Direct(p) => ic.inc(p as isize),
+            Field::Inmediate(_) => ic,
             Field::AIndirect(x, m) => {
                 if let Decrement::Predecrement = m {
-                    core[(ic + x) as usize].fields[0].decrement(core_size)
+                    core.get_instruction_at(&ic.inc(x as isize)).fields[0].decrement(core.core_size)
                 }
 
-                let ret = CorePtr(ic + x + core[(ic + x) as usize].fields[0].get_val());
+                let ret = ModUsize::new(
+                    ic.inc(x as isize)
+                        + (core.get_instruction_at(ic.inc(x as isize)).fields[0].get_val()),
+                    core.core_size,
+                );
 
                 if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[0].increment(core_size);
+                    core[(ic + x) as usize].fields[0].increment(core.core_size);
                 }
 
                 ret
             }
             Field::BIndirect(x, m) => {
                 if let Decrement::Predecrement = m {
-                    core[(ic + x) as usize].fields[1].decrement(core_size)
+                    core[(ic + x) as usize].fields[1].decrement(core.core_size)
                 }
 
-                let ret =
-                    CorePtr(ic + x + core[modulo(ic + x, core.len()) as usize].fields[1].get_val());
+                let ret = ModUsize(
+                    ic + x + core[modulo(ic + x, core.len()) as usize].fields[1].get_val(),
+                );
 
                 if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[1].increment(core_size);
+                    core[(ic + x) as usize].fields[1].increment(core.core_size);
                 }
 
                 ret
@@ -183,24 +160,24 @@ impl Field {
         ret
     }
 
-    pub fn print(&self, core_size: isize) {
+    pub fn print(&self, core_size: usize) {
         match self {
-            Field::Direct(x) => print!("{}", Self::t(x, core_size)),
-            Field::Inmediate(x) => print!("#{}", Self::t(x, core_size)),
+            Field::Direct(x) => print!("{}", Self::prettyfy(x, core_size)),
+            Field::Inmediate(x) => print!("#{}", Self::prettyfy(x, core_size)),
             Field::AIndirect(x, m) => match m {
-                Decrement::None => print!("*{}", Self::t(x, core_size)),
-                Decrement::Predecrement => print!("{{{}", Self::t(x, core_size)),
-                Decrement::Postincrement => print!("}}{}", Self::t(x, core_size)),
+                Decrement::None => print!("*{}", Self::prettyfy(x, core_size)),
+                Decrement::Predecrement => print!("{{{}", Self::prettyfy(x, core_size)),
+                Decrement::Postincrement => print!("}}{}", Self::prettyfy(x, core_size)),
             },
             Field::BIndirect(x, m) => match m {
-                Decrement::None => print!("@{}", Self::t(x, core_size)),
-                Decrement::Predecrement => print!("<{}", Self::t(x, core_size)),
-                Decrement::Postincrement => print!(">{}", Self::t(x, core_size)),
+                Decrement::None => print!("@{}", Self::prettyfy(x, core_size)),
+                Decrement::Predecrement => print!("<{}", Self::prettyfy(x, core_size)),
+                Decrement::Postincrement => print!(">{}", Self::prettyfy(x, core_size)),
             },
         }
     }
 
-    fn t(&x: &isize, core_size: isize) -> isize {
+    fn prettyfy(x: &usize, core_size: usize) -> isize {
         if x > core_size / 2 {
             x - core_size
         } else {

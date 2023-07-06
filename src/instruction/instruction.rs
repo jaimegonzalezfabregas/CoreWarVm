@@ -106,7 +106,7 @@ impl Instruction {
         }))
     }
 
-    pub(crate) fn print_state(&self, core_size: isize) {
+    pub(crate) fn print_state(&self, core_size: usize) {
         self.code.print();
         self.modifier.print();
         print!(" ");

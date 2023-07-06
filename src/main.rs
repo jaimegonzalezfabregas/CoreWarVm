@@ -24,8 +24,25 @@ fn main() -> Result<(), String> {
             "Dwarf".into(),
             CORE_SIZE,
         )?;
+        let _chang = warrior::Warrior::parse(
+            "jmp 4
+mov 2, -1
+jmp -1
+dat 9
+spl -2
+spl 4
+add #-16, -3
+mov -4, @-4
+jmp -4
+spl 2
+jmp -1
+mov 0, 1"
+                .into(),
+            "Chang1".into(),
+            CORE_SIZE,
+        )?;
 
-        core_conf.deploy(_dwarf, Some(0))?;
+        core_conf.deploy(_chang, Some(0))?;
     } else {
         let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
         let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);
