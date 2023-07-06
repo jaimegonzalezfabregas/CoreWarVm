@@ -4,10 +4,7 @@ mod test;
 mod utils;
 mod warrior;
 
-use crate::core::CoreConfig;
 use std::process::Command;
-
-use warrior::Warrior;
 
 const CORE_SIZE: isize = 40;
 
@@ -44,7 +41,7 @@ fn main() -> Result<(), String> {
     for _ in 0..20 {
         runtime.tick();
         println!("state:");
-        runtime.print_state();
+        runtime.print_state(None);
         let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
         if runtime.done() {
             break;

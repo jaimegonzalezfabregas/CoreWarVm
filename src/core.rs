@@ -31,12 +31,19 @@ impl CoreRuntime {
         if self.warriors.len() == 0 {
             return;
         }
+
         let instruction_counter = self.warriors[0].get_next_instruction_counter();
 
         let instruction = self.core[instruction_counter as usize];
 
         let field_a_solution = instruction.fields[0].solve(&mut self.core, instruction_counter);
         let field_b_solution = instruction.fields[1].solve(&mut self.core, instruction_counter);
+
+        print!("warrior {} is going to execute ", self.warriors[0].name);
+
+        instruction.print_state(self.core_size);
+
+        println!("");
 
         let mut die = false;
 
@@ -74,11 +81,7 @@ impl CoreRuntime {
                     // println!("[debug]: pipe from {} to {} ", i_src, i_dst);
                     let operand = self.read_field(&src, i_src);
                     let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(
-                        &dst,
-                        i_dst,
-                        modulo(old_value + operand, self.core_size) as isize,
-                    );
+                    self.write_field(&dst, i_dst, old_value + operand);
                 }
             }
             OpCode::SUB => {
@@ -90,11 +93,7 @@ impl CoreRuntime {
                 for (i_src, i_dst) in pipes {
                     let operand = self.read_field(&src, i_src);
                     let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(
-                        &dst,
-                        i_dst,
-                        modulo(old_value - operand, self.core_size) as isize,
-                    );
+                    self.write_field(&dst, i_dst, old_value - operand);
                 }
             }
             OpCode::MUL => {
@@ -106,11 +105,7 @@ impl CoreRuntime {
                 for (i_src, i_dst) in pipes {
                     let operand = self.read_field(&src, i_src);
                     let old_value = self.read_field(&dst, i_dst);
-                    self.write_field(
-                        &dst,
-                        i_dst,
-                        modulo(old_value * operand, self.core_size) as isize,
-                    );
+                    self.write_field(&dst, i_dst, old_value * operand);
                 }
             }
             OpCode::DIV => {
@@ -125,11 +120,7 @@ impl CoreRuntime {
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(
-                            &dst,
-                            i_dst,
-                            modulo(old_value / operand, self.core_size) as isize,
-                        );
+                        self.write_field(&dst, i_dst, old_value / operand);
                     }
                 }
             }
@@ -145,11 +136,7 @@ impl CoreRuntime {
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(
-                            &dst,
-                            i_dst,
-                            modulo(old_value / operand, self.core_size) as isize,
-                        );
+                        self.write_field(&dst, i_dst, old_value / operand);
                     }
                 }
             }
@@ -294,19 +281,29 @@ impl CoreRuntime {
 
     fn write_field(&mut self, ptr: &CorePtr, i_field: usize, data: isize) {
         match *ptr {
-            CorePtr(i) => self.core[modulo(i, self.core_size)].fields[i_field].set_val(data),
+            CorePtr(i) => {
+                self.core[modulo(i, self.core_size)].fields[i_field].set_val(data, self.core_size)
+            }
         }
     }
 
-    pub(crate) fn print_state(&self) {
-        for (i, cell) in self.core.iter().enumerate() {
-            print!("{i:0>6}: ");
-            cell.print_state();
-            for warr in self.warriors.iter() {
-                warr.print_state_at(i);
-            }
+    pub(crate) fn print_state(&self, range: Option<std::ops::Range<usize>>) {
+        let range = if let Some(range) = range {
+            range
+        } else {
+            0..self.core_size as usize
+        };
 
-            print!("\n");
+        for (i, cell) in self.core.iter().enumerate() {
+            if range.contains(&i) {
+                print!("{i:0>6}: ");
+                cell.print_state(self.core_size);
+                for warr in self.warriors.iter() {
+                    warr.print_state_at(i);
+                }
+
+                print!("\n");
+            }
         }
     }
 }
@@ -320,7 +317,6 @@ impl CoreConfig {
     }
 
     pub fn brawl(&self) -> CoreRuntime {
-
         let mut core = vec![
             Instruction {
                 code: OpCode::DAT,

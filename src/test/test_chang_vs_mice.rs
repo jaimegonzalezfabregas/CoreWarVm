@@ -14,7 +14,7 @@ mod tests {
     fn test_chang_vs_mice() {
         let mut core_conf = CoreConfig::new(8000);
 
-        let warr1 = match Warrior::parse(
+        let chang = match Warrior::parse(
             "jmp 4
 mov 2, -1
 jmp -1
@@ -36,7 +36,7 @@ mov 0, 1
             Err(err) => panic!("el parsing de chang ha fallado: {}", err),
         };
 
-        let warr2 = match Warrior::parse(
+        let mice = match Warrior::parse(
             "jmp 2
 dat 0
 mov #12, -1
@@ -48,30 +48,34 @@ jmz -5, -6
 dat 833
 "
             .into(),
-            "MICE".into(),
+            "MICE  ".into(),
             8000,
         ) {
             Ok(res) => res,
             Err(err) => panic!("el parsing de mice ha fallado: {}", err),
         };
 
-        core_conf.deploy(warr1, Some(0)).unwrap();
-        core_conf.deploy(warr2, Some(2227)).unwrap();
+        core_conf.deploy(mice, Some(4073)).unwrap();
+        core_conf.deploy(chang, Some(0)).unwrap();
 
         let mut runtime = core_conf.brawl();
 
-        for i in 0..=3 {
-            runtime.print_state();
+        for i in 0..=11 {
+            println!("check");
             let res = parse_ares_dump(&format!("src/test/test_chang_vs_mice_{i}_check.red"));
 
             for cell_i in 0..8000 {
-                println!("checking pos {cell_i} at tick {i}");
-                assert_eq!(
-                    <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]),
-                    res[cell_i]
-                );
-            }
+                let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]);
+                let b = res[cell_i];
+                if a != b {
+                    runtime.print_state(Some(cell_i.max(10) - 10..cell_i + 10));
 
+                    panic!("checking pos {cell_i} at tick {i}: \n{a:?} \n!= \n{b:?}\n");
+                }
+            }
+            println!("step");
+
+            runtime.tick();
             runtime.tick();
         }
     }

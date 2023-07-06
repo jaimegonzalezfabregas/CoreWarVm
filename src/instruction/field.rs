@@ -38,31 +38,21 @@ impl Field {
         }
     }
 
-    pub fn set_val(&mut self, data: isize) {
+    pub fn set_val(&mut self, data: isize, core_size: isize) {
         *match self {
             Field::Direct(x) => x,
             Field::Inmediate(x) => x,
             Field::AIndirect(x, _) => x,
             Field::BIndirect(x, _) => x,
-        } = data;
+        } = modulo(data, core_size) as isize;
     }
 
-    fn decrement(&mut self) {
-        *match self {
-            Field::Direct(x) => x,
-            Field::Inmediate(x) => x,
-            Field::AIndirect(x, _) => x,
-            Field::BIndirect(x, _) => x,
-        } -= 1;
+    fn decrement(&mut self, core_size: isize) {
+        self.set_val(self.get_val() - 1, core_size)
     }
 
-    fn increment(&mut self) {
-        *match self {
-            Field::Direct(x) => x,
-            Field::Inmediate(x) => x,
-            Field::AIndirect(x, _) => x,
-            Field::BIndirect(x, _) => x,
-        } += 1;
+    fn increment(&mut self, core_size: isize) {
+        self.set_val(self.get_val() + 1, core_size)
     }
 
     pub fn parse(line: String, core_size: isize) -> Result<(Option<Self>, String), String> {
@@ -155,32 +145,33 @@ impl Field {
     }
 
     pub fn solve(&self, core: &mut Vec<Instruction>, ic: isize) -> CorePtr {
+        let core_size = core.len() as isize;
         let ret = match self {
             Field::Direct(p) => CorePtr(ic + p),
             Field::Inmediate(_) => CorePtr(ic),
             Field::AIndirect(x, m) => {
                 if let Decrement::Predecrement = m {
-                    core[(ic + x) as usize].fields[0].decrement()
+                    core[(ic + x) as usize].fields[0].decrement(core_size)
                 }
 
                 let ret = CorePtr(ic + x + core[(ic + x) as usize].fields[0].get_val());
 
                 if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[0].increment();
+                    core[(ic + x) as usize].fields[0].increment(core_size);
                 }
 
                 ret
             }
             Field::BIndirect(x, m) => {
                 if let Decrement::Predecrement = m {
-                    core[(ic + x) as usize].fields[1].decrement()
+                    core[(ic + x) as usize].fields[1].decrement(core_size)
                 }
 
                 let ret =
                     CorePtr(ic + x + core[modulo(ic + x, core.len()) as usize].fields[1].get_val());
 
                 if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[1].increment();
+                    core[(ic + x) as usize].fields[1].increment(core_size);
                 }
 
                 ret
@@ -192,20 +183,28 @@ impl Field {
         ret
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, core_size: isize) {
         match self {
-            Field::Direct(x) => print!("{x}"),
-            Field::Inmediate(x) => print!("#{x}"),
+            Field::Direct(x) => print!("{}", Self::t(x, core_size)),
+            Field::Inmediate(x) => print!("#{}", Self::t(x, core_size)),
             Field::AIndirect(x, m) => match m {
-                Decrement::None => print!("*{x}"),
-                Decrement::Predecrement => print!("{{{x}"),
-                Decrement::Postincrement => print!("}}{x}"),
+                Decrement::None => print!("*{}", Self::t(x, core_size)),
+                Decrement::Predecrement => print!("{{{}", Self::t(x, core_size)),
+                Decrement::Postincrement => print!("}}{}", Self::t(x, core_size)),
             },
             Field::BIndirect(x, m) => match m {
-                Decrement::None => print!("@{x}"),
-                Decrement::Predecrement => print!("<{x}"),
-                Decrement::Postincrement => print!(">{x}"),
+                Decrement::None => print!("@{}", Self::t(x, core_size)),
+                Decrement::Predecrement => print!("<{}", Self::t(x, core_size)),
+                Decrement::Postincrement => print!(">{}", Self::t(x, core_size)),
             },
+        }
+    }
+
+    fn t(&x: &isize, core_size: isize) -> isize {
+        if x > core_size / 2 {
+            x - core_size
+        } else {
+            x
         }
     }
 

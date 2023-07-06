@@ -1,8 +1,8 @@
+pub mod test_chang_vs_mice;
 mod test_dwarf;
-mod test_imp;
+mod test_imp_wall;
 mod test_normal_run;
 mod test_warrior_colision;
-pub mod test_chang_vs_mice;
 
 #[cfg(test)]
 mod tests {
@@ -21,7 +21,7 @@ mod tests {
 
         for (i, line) in str.split('\n').enumerate() {
             match ReadOnlyInstruction::parse(line.into(), 8000) {
-                Ok(None) => println!("no instruction found at (file {}: line: {})", file_path, i),
+                Ok(None) => (),
                 Ok(Some(op)) => ret.push(op),
                 Err(err) => panic!(
                     "while parsing ares dump {} (file {}: line: {})",
