@@ -1,9 +1,7 @@
-use rand::{seq::SliceRandom, Rng};
 
-use crate::{
-    core::CoreRuntime,
-    utils::{modulo, ModUsize},
-};
+use rand::seq::SliceRandom;
+
+use crate::{core::CoreRuntime, utils::ModUsize};
 
 use super::decrement::Decrement;
 
@@ -19,14 +17,14 @@ impl Field {
     pub fn get_random(ptr_range: usize, core_size: usize) -> Field {
         use Field::*;
         [
-            Direct(ModUsize::rand(core_size, 0..core_size)),
+            Direct(ModUsize::rand(core_size, 0..ptr_range)),
             Inmediate(ModUsize::rand(core_size, 0..core_size)),
             AIndirect(
-                ModUsize::rand(core_size, 0..core_size),
+                ModUsize::rand(core_size, 0..ptr_range),
                 Decrement::get_random(),
             ),
             BIndirect(
-                ModUsize::rand(core_size, 0..core_size),
+                ModUsize::rand(core_size, 0..ptr_range),
                 Decrement::get_random(),
             ),
         ]
@@ -53,12 +51,12 @@ impl Field {
         } = data;
     }
 
-    fn decrement(&mut self, core_size: usize) {
-        *self.get_val() -= 1
+    fn decrement(&mut self) {
+        self.set_val(*self.get_val() - 1 as usize)
     }
 
-    fn increment(&mut self, core_size: usize) {
-        *self.get_val() += 1
+    fn increment(&mut self) {
+        self.set_val(*self.get_val() + 1 as usize)
     }
 
     fn num_parse(line: &str, core_size: usize) -> Result<ModUsize, String> {
@@ -118,37 +116,19 @@ impl Field {
     }
 
     pub fn solve(&self, core: &mut CoreRuntime, ic: ModUsize) -> ModUsize {
-        let ret = match *self {
-            Field::Direct(p) => ic.inc(p as isize),
-            Field::Inmediate(_) => ic,
-            Field::AIndirect(x, m) => {
+        let ret = match (*self, 0, 1) {
+            (Field::Direct(p), _, _) => ic + p,
+            (Field::Inmediate(_), _, _) => ic,
+            (Field::AIndirect(x, m), i, _) | (Field::BIndirect(x, m), _, i) => {
+                let inst = core.get_mut_instruction_at(&(ic + x));
                 if let Decrement::Predecrement = m {
-                    core.get_instruction_at(&ic.inc(x as isize)).fields[0].decrement(core.core_size)
+                    inst.fields[i].decrement()
                 }
 
-                let ret = ModUsize::new(
-                    ic.inc(x as isize)
-                        + (core.get_instruction_at(ic.inc(x as isize)).fields[0].get_val()),
-                    core.core_size,
-                );
+                let ret = ic + x + *inst.fields[i].get_val();
 
                 if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[0].increment(core.core_size);
-                }
-
-                ret
-            }
-            Field::BIndirect(x, m) => {
-                if let Decrement::Predecrement = m {
-                    core[(ic + x) as usize].fields[1].decrement(core.core_size)
-                }
-
-                let ret = ModUsize(
-                    ic + x + core[modulo(ic + x, core.len()) as usize].fields[1].get_val(),
-                );
-
-                if let Decrement::Postincrement = m {
-                    core[(ic + x) as usize].fields[1].increment(core.core_size);
+                    inst.fields[i].increment()
                 }
 
                 ret
@@ -160,32 +140,24 @@ impl Field {
         ret
     }
 
-    pub fn print(&self, core_size: usize) {
+    pub fn print(&self) {
         match self {
-            Field::Direct(x) => print!("{}", Self::prettyfy(x, core_size)),
-            Field::Inmediate(x) => print!("#{}", Self::prettyfy(x, core_size)),
+            Field::Direct(x) => print!("{}", x.get_printable()),
+            Field::Inmediate(x) => print!("#{}", x.get_printable()),
             Field::AIndirect(x, m) => match m {
-                Decrement::None => print!("*{}", Self::prettyfy(x, core_size)),
-                Decrement::Predecrement => print!("{{{}", Self::prettyfy(x, core_size)),
-                Decrement::Postincrement => print!("}}{}", Self::prettyfy(x, core_size)),
+                Decrement::None => print!("*{}", x.get_printable()),
+                Decrement::Predecrement => print!("{{{}", x.get_printable()),
+                Decrement::Postincrement => print!("}}{}", x.get_printable()),
             },
             Field::BIndirect(x, m) => match m {
-                Decrement::None => print!("@{}", Self::prettyfy(x, core_size)),
-                Decrement::Predecrement => print!("<{}", Self::prettyfy(x, core_size)),
-                Decrement::Postincrement => print!(">{}", Self::prettyfy(x, core_size)),
+                Decrement::None => print!("@{}", x.get_printable()),
+                Decrement::Predecrement => print!("<{}", x.get_printable()),
+                Decrement::Postincrement => print!(">{}", x.get_printable()),
             },
         }
     }
 
-    fn prettyfy(x: &usize, core_size: usize) -> isize {
-        if x > core_size / 2 {
-            x - core_size
-        } else {
-            x
-        }
-    }
-
-    pub(crate) fn default() -> Field {
-        Self::Direct(0)
+    pub(crate) fn default(core_size: usize) -> Field {
+        Self::Direct(ModUsize::new(0, core_size))
     }
 }

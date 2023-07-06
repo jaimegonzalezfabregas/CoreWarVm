@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CoreRuntime {
     pub core_size: usize,
-    core: Vec<Instruction>,
+    pub core: Vec<Instruction>,
     pub warriors: Vec<Warrior>,
 }
 #[derive(Debug, Clone)]
@@ -31,14 +31,14 @@ impl CoreRuntime {
 
         let instruction_counter = self.warriors[0].get_next_instruction_counter();
 
-        let instruction = &self.get_instruction_at(&instruction_counter);
+        let instruction = *self.get_instruction_at(&instruction_counter);
 
         let field_a_solution = instruction.fields[0].solve(self, instruction_counter);
         let field_b_solution = instruction.fields[1].solve(self, instruction_counter);
 
         print!("warrior {} is going to execute ", self.warriors[0].name);
 
-        instruction.print_state(self.core_size);
+        instruction.print_state();
 
         println!("");
 
@@ -63,7 +63,7 @@ impl CoreRuntime {
                     self.set_instruction_at(&dst, instruction.clone());
                 } else {
                     for (i_src, i_dst) in pipes {
-                        let data = self.get_field(&src, i_src);
+                        let data = *self.get_field(&src, i_src);
                         self.write_field(&dst, i_dst, data);
                     }
                 }
@@ -76,9 +76,9 @@ impl CoreRuntime {
 
                 for (i_src, i_dst) in pipes {
                     // println!("[debug]: pipe from {} to {} ", i_src, i_dst);
-                    let operand = self.get_field(&src, i_src).clone();
-                    let old_value = self.get_field(&dst, i_dst).clone();
-                    self.write_field(&dst, i_dst, &(old_value + operand));
+                    let operand = *self.get_field(&src, i_src);
+                    let old_value = *self.get_field(&dst, i_dst);
+                    self.write_field(&dst, i_dst, old_value + operand);
                 }
             }
             OpCode::SUB => {
@@ -88,9 +88,9 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.get_field(&src, i_src).clone();
-                    let old_value = self.get_field(&dst, i_dst).clone();
-                    self.write_field(&dst, i_dst, &(old_value - operand));
+                    let operand = *self.get_field(&src, i_src);
+                    let old_value = *self.get_field(&dst, i_dst);
+                    self.write_field(&dst, i_dst, old_value - operand);
                 }
             }
             OpCode::MUL => {
@@ -100,9 +100,9 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.get_field(&src, i_src).clone();
-                    let old_value = self.get_field(&dst, i_dst).clone();
-                    self.write_field(&dst, i_dst, &(old_value * operand));
+                    let operand = *self.get_field(&src, i_src);
+                    let old_value = *self.get_field(&dst, i_dst);
+                    self.write_field(&dst, i_dst, old_value * operand);
                 }
             }
             OpCode::DIV => {
@@ -112,12 +112,12 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.get_field(&src, i_src).clone();
-                    let old_value = self.get_field(&dst, i_dst).clone();
+                    let operand = *self.get_field(&src, i_src);
+                    let old_value = *self.get_field(&dst, i_dst);
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(&dst, i_dst, &(old_value / operand));
+                        self.write_field(&dst, i_dst, old_value / operand);
                     }
                 }
             }
@@ -128,15 +128,18 @@ impl CoreRuntime {
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = self.get_field(&src, i_src);
-                    let old_value = self.get_field(&dst, i_dst);
-                    if *operand == 0 {
+                    let operand = *self.get_field(&src, i_src);
+                    let old_value = *self.get_field(&dst, i_dst);
+                    if operand == 0 {
                         die = true;
                     } else {
                         self.write_field(
                             &dst,
                             i_dst,
-                            &ModUsize::new(old_value.val % operand.val, operand.congruence),
+                            ModUsize::new(
+                                old_value.val as isize % operand.val as isize,
+                                operand.congruence,
+                            ),
                         );
                     }
                 }
@@ -178,8 +181,8 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (_, i_dst) in pipes {
-                    let val = *self.get_field(&field_b_solution, i_dst) - 1;
-                    self.write_field(&field_b_solution, i_dst, &val);
+                    let val = *self.get_field(&field_b_solution, i_dst) - 1 as usize;
+                    self.write_field(&field_b_solution, i_dst, val);
 
                     if val != 0 {
                         jump = true;
@@ -267,6 +270,10 @@ impl CoreRuntime {
         &self.core[ptr.val]
     }
 
+    pub fn get_mut_instruction_at(&mut self, ptr: &ModUsize) -> &mut Instruction {
+        &mut self.core[ptr.val]
+    }
+
     fn set_instruction_at(&mut self, ptr: &ModUsize, instruction: Instruction) {
         self.core[ptr.val] = instruction;
     }
@@ -275,8 +282,8 @@ impl CoreRuntime {
         self.core[ptr.val].fields[i_field].get_val()
     }
 
-    fn write_field(&mut self, ptr: &ModUsize, i_field: usize, data: &ModUsize) {
-        *self.get_field(ptr, i_field) = data.clone()
+    fn write_field(&mut self, ptr: &ModUsize, i_field: usize, data: ModUsize) {
+        self.core[ptr.val].fields[i_field].set_val(data)
     }
 
     pub(crate) fn print_state(&self, range: Option<std::ops::Range<usize>>) {
@@ -293,7 +300,7 @@ impl CoreRuntime {
         for (i, cell) in self.core.iter().enumerate() {
             if range.contains(&i) {
                 print!("{i:0>6}: ");
-                cell.print_state(self.core_size);
+                cell.print_state();
                 for warr in self.warriors.iter() {
                     warr.print_state_at(i);
                 }
@@ -399,6 +406,6 @@ fn check_segment_colision(
         let n_start_b = start_b.inc(-(start_a.val as isize));
         let n_end_b = start_b.inc(len_b as isize);
 
-        (n_start_b.val >= 0 && n_start_b.val <= len_b) || (n_end_b.val >= 0 && n_end_b.val <= len_b)
+        (n_start_b.val <= len_b) || (n_end_b.val <= len_b)
     }
 }

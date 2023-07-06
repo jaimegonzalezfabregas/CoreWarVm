@@ -187,3 +187,13 @@ impl PartialEq<usize> for ModUsize {
         self.val == *other
     }
 }
+
+impl ModUsize {
+    pub fn get_printable(&self) -> isize {
+        if self.val > self.congruence / 2 {
+            (self.val - self.congruence) as isize
+        } else {
+            self.val as isize
+        }
+    }
+}

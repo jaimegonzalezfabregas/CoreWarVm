@@ -7,12 +7,14 @@ mod tests {
         core::CoreConfig,
         instruction::instruction::Instruction,
         test::tests::{parse_ares_dump, ReadOnlyInstruction},
+        utils::ModUsize,
         warrior::Warrior,
     };
 
     #[test]
     fn test_chang_vs_mice() {
-        let mut core_conf = CoreConfig::new(8000);
+        const CORE_SIZE: usize = 8000;
+        let mut core_conf = CoreConfig::new(CORE_SIZE);
 
         let chang = match Warrior::parse(
             "jmp 4
@@ -30,7 +32,7 @@ mov 0, 1
 "
             .into(),
             "CHANG1".into(),
-            8000,
+            CORE_SIZE,
         ) {
             Ok(res) => res,
             Err(err) => panic!("el parsing de chang ha fallado: {}", err),
@@ -49,14 +51,18 @@ dat 833
 "
             .into(),
             "MICE  ".into(),
-            8000,
+            CORE_SIZE,
         ) {
             Ok(res) => res,
             Err(err) => panic!("el parsing de mice ha fallado: {}", err),
         };
 
-        core_conf.deploy(mice, Some(4073)).unwrap();
-        core_conf.deploy(chang, Some(0)).unwrap();
+        core_conf
+            .deploy(mice, Some(ModUsize::new(4073, CORE_SIZE)))
+            .unwrap();
+        core_conf
+            .deploy(chang, Some(ModUsize::new(0, CORE_SIZE)))
+            .unwrap();
 
         let mut runtime = core_conf.brawl();
 

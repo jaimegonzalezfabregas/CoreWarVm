@@ -6,7 +6,9 @@ mod warrior;
 
 use std::process::Command;
 
-const CORE_SIZE: isize = 40;
+use utils::ModUsize;
+
+const CORE_SIZE: usize = 40;
 
 const TEST_MODE: bool = true;
 
@@ -42,7 +44,7 @@ mov 0, 1"
             CORE_SIZE,
         )?;
 
-        core_conf.deploy(_chang, Some(0))?;
+        core_conf.deploy(_chang, Some(ModUsize::new(0, CORE_SIZE)))?;
     } else {
         let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
         let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);

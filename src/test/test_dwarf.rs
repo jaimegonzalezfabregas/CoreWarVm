@@ -7,12 +7,13 @@ mod tests {
         core::CoreConfig,
         instruction::instruction::Instruction,
         test::tests::{parse_ares_dump, ReadOnlyInstruction},
-        warrior::Warrior,
+        warrior::Warrior, utils::ModUsize,
     };
 
     #[test]
     fn test_dwarf() {
-        let mut core_conf = CoreConfig::new(8000);
+        let core_size = 8000;
+        let mut core_conf = CoreConfig::new(core_size);
 
         let dwarf = match Warrior::parse(
             "  ADD #4, 3        
@@ -27,7 +28,7 @@ mod tests {
             Err(err) => panic!("el parsing del warrior a fallado: {}", err),
         };
 
-        core_conf.deploy(dwarf, Some(0)).unwrap();
+        core_conf.deploy(dwarf, Some(ModUsize::new(0, core_size))).unwrap();
 
         let mut runtime = core_conf.brawl();
 

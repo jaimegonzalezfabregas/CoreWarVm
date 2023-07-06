@@ -8,7 +8,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    pub fn get_random(ptr_range: isize, core_size: isize) -> Self {
+    pub fn get_random(ptr_range: usize, core_size: usize) -> Self {
         Self {
             code: OpCode::get_random(),
             modifier: OpModifier::get_random(),
@@ -63,7 +63,7 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn parse(line: String, core_size: isize) -> Result<Option<Self>, String> {
+    pub(crate) fn parse(line: String, core_size: usize) -> Result<Option<Self>, String> {
         let line = match line.find(";") {
             Some(x) => line[0..x].to_string(),
             None => line,
@@ -95,9 +95,17 @@ impl Instruction {
             }
         }
 
-        let a = if let Some(a) = a { a } else { Field::default() };
+        let a = if let Some(a) = a {
+            a
+        } else {
+            Field::default(core_size)
+        };
 
-        let b = if let Some(b) = b { b } else { Field::default() };
+        let b = if let Some(b) = b {
+            b
+        } else {
+            Field::default(core_size)
+        };
 
         Ok(Some(Self {
             code,
@@ -106,12 +114,12 @@ impl Instruction {
         }))
     }
 
-    pub(crate) fn print_state(&self, core_size: usize) {
+    pub(crate) fn print_state(&self) {
         self.code.print();
         self.modifier.print();
         print!(" ");
-        self.fields[0].print(core_size);
+        self.fields[0].print();
         print!(" ");
-        self.fields[1].print(core_size);
+        self.fields[1].print();
     }
 }

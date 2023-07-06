@@ -60,7 +60,7 @@ mod tests {
     }
 
     impl ReadOnlyInstruction {
-        pub fn parse(line: String, core_size: isize) -> Result<Option<Self>, String> {
+        pub fn parse(line: String, core_size: usize) -> Result<Option<Self>, String> {
             let line = match line.find(";") {
                 Some(x) => line[0..x].to_string(),
                 None => line,

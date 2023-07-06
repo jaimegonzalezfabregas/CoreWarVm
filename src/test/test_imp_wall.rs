@@ -2,20 +2,27 @@
 
 mod tests {
     use crate::{
-        core::CoreConfig, instruction::instruction::Instruction,
-        test::tests::{parse_ares_dump, ReadOnlyInstruction}, warrior::Warrior,
+        core::CoreConfig,
+        instruction::instruction::Instruction,
+        test::tests::{parse_ares_dump, ReadOnlyInstruction},
+        utils::ModUsize,
+        warrior::Warrior,
     };
 
     #[test]
     fn test_imp() {
-        let mut core_conf = CoreConfig::new(8000);
+        let core_size = 8000;
 
-        let imp_wall = match Warrior::parse("jmp 0, <-1".into(), "Imp Wall".into(), 8000) {
+        let mut core_conf = CoreConfig::new(core_size);
+
+        let imp_wall = match Warrior::parse("jmp 0, <-1".into(), "Imp Wall".into(), core_size) {
             Ok(res) => res,
             Err(err) => panic!("el parsing del warrior a fallado: {}", err),
         };
 
-        core_conf.deploy(imp_wall, Some(0)).unwrap();
+        core_conf
+            .deploy(imp_wall, Some(ModUsize::new(0, core_size)))
+            .unwrap();
 
         let mut runtime = core_conf.brawl();
 

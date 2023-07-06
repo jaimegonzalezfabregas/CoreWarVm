@@ -1,10 +1,10 @@
 use rand::Rng;
 
-use crate::{core::ModUsize, instruction::instruction::Instruction, utils::modulo};
+use crate::{instruction::instruction::Instruction, utils::ModUsize};
 
 #[derive(Debug, Clone)]
 pub struct Warrior {
-    pub org: isize,
+    pub org: usize,
     pub name: String,
     pub body: Vec<Instruction>,
     pub instruction_counters: Vec<ModUsize>,
@@ -15,7 +15,7 @@ impl Warrior {
         self.instruction_counters.push(ptr);
     }
 
-    pub fn random_create(size: isize, core_size: isize) -> Self {
+    pub fn random_create(size: usize, core_size: usize) -> Self {
         let mut body = vec![];
 
         for _ in 0..size {
@@ -50,7 +50,7 @@ impl Warrior {
         self.instruction_counters[0] = val;
     }
 
-    pub fn parse(str: String, name: String, core_size: isize) -> Result<Self, String> {
+    pub fn parse(str: String, name: String, core_size: usize) -> Result<Self, String> {
         let str = str.to_uppercase();
 
         let mut body = vec![];
@@ -60,7 +60,7 @@ impl Warrior {
             let line = line.trim();
             if line.starts_with("ORG") {
                 if let None = start {
-                    start = Some(i as isize);
+                    start = Some(i);
                 } else {
                     return Err(format!("linea {i}: multiple ORG pseudoinstructions found"));
                 }
@@ -81,9 +81,9 @@ impl Warrior {
         })
     }
 
-    pub(crate) fn print_state_at(&self, i: usize) {
+    pub(crate) fn print_state_at(&self, line: usize) {
         for (thread_i, ic) in self.instruction_counters.iter().enumerate() {
-            if i as isize == *ic {
+            if *ic == line {
                 print!(" < {}({thread_i})", self.name);
             }
         }
