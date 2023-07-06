@@ -1,7 +1,10 @@
 #[cfg(test)]
 
 mod tests {
-    use crate::{core::CoreConfig, test::parse_ares_dump, warrior::Warrior, op::{RunnableInstruction, ReadOnlyInstruction}};
+    use crate::{
+        core::CoreConfig, instruction::runnable_instruction::RunnableInstruction,
+        test::tests::{parse_ares_dump, ReadOnlyInstruction}, warrior::Warrior,
+    };
 
     #[test]
     fn test_imp() {

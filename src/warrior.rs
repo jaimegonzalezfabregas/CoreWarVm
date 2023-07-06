@@ -1,4 +1,7 @@
-use crate::{ utils::modulo, op::RunnableInstruction};
+use rand::{ Rng};
+
+use crate::{instruction::runnable_instruction::RunnableInstruction, utils::modulo};
+
 
 #[derive(Debug, Clone)]
 pub struct Warrior {
@@ -17,15 +20,21 @@ impl Warrior {
         let mut body = vec![];
 
         for _ in 0..size {
-            let inst = RunnableInstruction::get_random(size, core_size as usize);
+            println!("creating random instruction");
+
+            let inst = RunnableInstruction::get_random(size, core_size);
 
             println!("{inst:?}");
 
             body.push(inst)
         }
 
+        let org = rand::thread_rng().gen_range(0..size);
+
+        println!("\n\norg:{org}\n\n");
+
         Warrior {
-            org: modulo(rand::random::<usize>(), size) as isize,
+            org,
             name: "random".into(),
             body,
             instruction_counters: vec![],

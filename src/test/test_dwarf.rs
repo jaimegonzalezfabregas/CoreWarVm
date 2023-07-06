@@ -4,10 +4,8 @@ mod tests {
     use core::panic;
 
     use crate::{
-        core::CoreConfig,
-        op::{ReadOnlyInstruction, RunnableInstruction},
-        test::parse_ares_dump,
-        warrior::Warrior,
+        core::CoreConfig, instruction::runnable_instruction::RunnableInstruction,
+        test::tests::{parse_ares_dump, ReadOnlyInstruction}, warrior::Warrior,
     };
 
     #[test]

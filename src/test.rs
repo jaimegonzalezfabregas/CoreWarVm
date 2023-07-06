@@ -1,30 +1,110 @@
-use std::fs;
-
-use crate::op::{ReadOnlyInstruction};
-
-
 mod test_dwarf;
 mod test_imp;
-mod test_warrior_colision;
 mod test_normal_run;
+mod test_warrior_colision;
 
-pub fn parse_ares_dump(file_path: &str) -> Vec<ReadOnlyInstruction> {
-    let contents = fs::read_to_string(file_path).unwrap();
+#[cfg(test)]
+mod tests {
 
-    let mut ret = vec![];
+    use std::fs;
 
-    let str = contents.to_uppercase();
+    use crate::instruction::runnable_instruction::RunnableInstruction;
+    use crate::instruction::{op_code::OpCode, op_modifier::OpModifier};
 
-    for (i, line) in str.split('\n').enumerate() {
-        match ReadOnlyInstruction::parse(line.into(), 8000) {
-            Ok(None) => println!("no instruction found at (file {}: line: {})", file_path, i),
-            Ok(Some(op)) => ret.push(op),
-            Err(err) => panic!(
-                "while parsing ares dump {} (file {}: line: {})",
-                err, file_path, i
-            ),
+    pub fn parse_ares_dump(file_path: &str) -> Vec<ReadOnlyInstruction> {
+        let contents = fs::read_to_string(file_path).unwrap();
+
+        let mut ret = vec![];
+
+        let str = contents.to_uppercase();
+
+        for (i, line) in str.split('\n').enumerate() {
+            match ReadOnlyInstruction::parse(line.into(), 8000) {
+                Ok(None) => println!("no instruction found at (file {}: line: {})", file_path, i),
+                Ok(Some(op)) => ret.push(op),
+                Err(err) => panic!(
+                    "while parsing ares dump {} (file {}: line: {})",
+                    err, file_path, i
+                ),
+            }
+        }
+
+        ret
+    }
+
+    use crate::instruction::field::Field;
+
+    #[derive(Clone, Copy, Debug, Eq)]
+    pub struct ReadOnlyInstruction {
+        pub code: OpCode,
+        pub modifier: OpModifier,
+        pub fields: [Option<Field>; 2],
+    }
+
+    impl PartialEq for ReadOnlyInstruction {
+        fn eq(&self, other: &Self) -> bool {
+            self.code == other.code
+                && self.modifier == other.modifier
+                && {
+                    self.fields[0].is_none()
+                        || other.fields[0].is_none()
+                        || self.fields[0] == other.fields[0]
+                }
+                && {
+                    self.fields[1].is_none()
+                        || other.fields[1].is_none()
+                        || self.fields[1] == other.fields[1]
+                }
         }
     }
 
-    ret
+    impl ReadOnlyInstruction {
+        pub fn parse(line: String, core_size: isize) -> Result<Option<Self>, String> {
+            let line = match line.find(";") {
+                Some(x) => line[0..x].to_string(),
+                None => line,
+            };
+
+            let line = line.trim_start().to_string();
+
+            if line == "" {
+                return Ok(None);
+            }
+
+            let (code, line) = OpCode::parse(line.into())?;
+
+            let line = line.trim_start().to_string();
+
+            let (modifier, line) = OpModifier::parse(line.into())?;
+
+            let line = line.trim_start().to_string();
+
+            let (mut a, line) = Field::parse(line.into(), core_size)?;
+
+            let line = line.trim_start().to_string();
+
+            let (mut b, _) = Field::parse(line.into(), core_size)?;
+
+            if let OpCode::DAT = code {
+                if let None = b {
+                    (b, a) = (a, b);
+                }
+            }
+
+            Ok(Some(Self {
+                code,
+                modifier,
+                fields: [a, b],
+            }))
+        }
+    }
+    impl From<RunnableInstruction> for ReadOnlyInstruction {
+        fn from(value: RunnableInstruction) -> Self {
+            return Self {
+                code: value.code,
+                modifier: value.modifier,
+                fields: [Some(value.fields[0]), Some(value.fields[1])],
+            };
+        }
+    }
 }

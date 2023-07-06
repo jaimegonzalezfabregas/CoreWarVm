@@ -1,8 +1,6 @@
-use crate::{
-    op::{Field, OpCode, OpModifier, RunnableInstruction},
-    utils::modulo,
-    warrior::Warrior,
-};
+use crate::{warrior::Warrior, instruction::{runnable_instruction::RunnableInstruction, op_code::OpCode, field::Field, op_modifier::OpModifier}, utils::modulo};
+
+
 
 #[derive(Debug)]
 pub struct CoreRuntime {
