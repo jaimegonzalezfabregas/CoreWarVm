@@ -1,3 +1,4 @@
+use core::fmt;
 use std::ops::*;
 
 use rand::Rng;
@@ -76,7 +77,7 @@ impl Sub<usize> for ModUsize {
 
     fn sub(self, rhs: usize) -> Self::Output {
         Self {
-            val: modulo(self.val - rhs, self.congruence),
+            val: modulo(self.val as isize - rhs as isize, self.congruence),
             congruence: self.congruence,
         }
     }
@@ -188,12 +189,14 @@ impl PartialEq<usize> for ModUsize {
     }
 }
 
-impl ModUsize {
-    pub fn get_printable(&self) -> isize {
-        if self.val > self.congruence / 2 {
-            (self.val - self.congruence) as isize
+impl fmt::Display for ModUsize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let res = if self.val > self.congruence / 2 {
+            (self.val as isize - self.congruence as isize) as isize
         } else {
             self.val as isize
-        }
+        };
+
+        write!(f, "{res}")
     }
 }

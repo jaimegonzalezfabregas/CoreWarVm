@@ -7,12 +7,18 @@ pub struct Warrior {
     pub org: usize,
     pub name: String,
     pub body: Vec<Instruction>,
-    pub instruction_counters: Vec<ModUsize>,
-}
+    instruction_counters: Vec<ModUsize>,
+    }
 
 impl Warrior {
     pub fn new_thread(&mut self, ptr: ModUsize) {
+        println!("before new thread: {:?}", self.instruction_counters);
         self.instruction_counters.push(ptr);
+        println!("after new thread: {:?}", self.instruction_counters);
+    }
+
+    pub fn get_counters(&self) -> Vec<ModUsize> {
+        self.instruction_counters.clone()
     }
 
     pub fn random_create(size: usize, core_size: usize) -> Self {
@@ -46,8 +52,9 @@ impl Warrior {
         ret
     }
 
-    pub fn set_instruction_counter(&mut self, val: ModUsize) {
-        self.instruction_counters[0] = val;
+    pub fn set_last_instruction_counter(&mut self, val: ModUsize) {
+        let last_i = self.instruction_counters.len() - 1;
+        self.instruction_counters[last_i] = val;
     }
 
     pub fn parse(str: String, name: String, core_size: usize) -> Result<Self, String> {

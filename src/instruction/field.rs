@@ -1,4 +1,3 @@
-
 use rand::seq::SliceRandom;
 
 use crate::{core::CoreRuntime, utils::ModUsize};
@@ -62,7 +61,7 @@ impl Field {
     fn num_parse(line: &str, core_size: usize) -> Result<ModUsize, String> {
         match str::parse::<isize>(line.into()) {
             Ok(i) => Ok(ModUsize::new(i, core_size)),
-            Err(_) => Err("parsing number failed".into()),
+            Err(_) => Err(format!("parsing number from \"{line}\" failed")),
         }
     }
 
@@ -85,21 +84,21 @@ impl Field {
             // println!("parsing field from {}", line);
 
             if line.starts_with("#") {
-                ret = Self::Inmediate(Self::num_parse(&line[..1], core_size)?);
+                ret = Self::Inmediate(Self::num_parse(&line[1..], core_size)?);
             } else if line.starts_with("$") {
-                ret = Self::Direct(Self::num_parse(&line[..1], core_size)?);
+                ret = Self::Direct(Self::num_parse(&line[1..], core_size)?);
             } else if line.starts_with("*") {
-                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, None);
+                ret = Self::AIndirect(Self::num_parse(&line[1..], core_size)?, None);
             } else if line.starts_with("@") {
-                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, None);
+                ret = Self::BIndirect(Self::num_parse(&line[1..], core_size)?, None);
             } else if line.starts_with("{") {
-                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, Predecrement);
+                ret = Self::AIndirect(Self::num_parse(&line[1..], core_size)?, Predecrement);
             } else if line.starts_with("<") {
-                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, Predecrement);
+                ret = Self::BIndirect(Self::num_parse(&line[1..], core_size)?, Predecrement);
             } else if line.starts_with(r"}") {
-                ret = Self::AIndirect(Self::num_parse(&line[..1], core_size)?, Postincrement);
+                ret = Self::AIndirect(Self::num_parse(&line[1..], core_size)?, Postincrement);
             } else if line.starts_with(">") {
-                ret = Self::BIndirect(Self::num_parse(&line[..1], core_size)?, Postincrement);
+                ret = Self::BIndirect(Self::num_parse(&line[1..], core_size)?, Postincrement);
             } else {
                 match str::parse::<isize>(line) {
                     Ok(i) => {
@@ -142,17 +141,17 @@ impl Field {
 
     pub fn print(&self) {
         match self {
-            Field::Direct(x) => print!("{}", x.get_printable()),
-            Field::Inmediate(x) => print!("#{}", x.get_printable()),
+            Field::Direct(x) => print!("{x}"),
+            Field::Inmediate(x) => print!("#{x}"),
             Field::AIndirect(x, m) => match m {
-                Decrement::None => print!("*{}", x.get_printable()),
-                Decrement::Predecrement => print!("{{{}", x.get_printable()),
-                Decrement::Postincrement => print!("}}{}", x.get_printable()),
+                Decrement::None => print!("*{x}"),
+                Decrement::Predecrement => print!("{{{x}"),
+                Decrement::Postincrement => print!("}}{x}"),
             },
             Field::BIndirect(x, m) => match m {
-                Decrement::None => print!("@{}", x.get_printable()),
-                Decrement::Predecrement => print!("<{}", x.get_printable()),
-                Decrement::Postincrement => print!(">{}", x.get_printable()),
+                Decrement::None => print!("@{x}"),
+                Decrement::Predecrement => print!("<{x}"),
+                Decrement::Postincrement => print!(">{x}"),
             },
         }
     }

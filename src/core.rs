@@ -193,10 +193,7 @@ impl CoreRuntime {
                     next_instruction = field_a_solution;
                 }
             }
-            OpCode::SPL => {
-                println!("creating new thread at: {:?}", field_a_solution);
-                self.warriors[0].new_thread(field_a_solution);
-            }
+            OpCode::SPL => (),
             OpCode::CMP | OpCode::SEQ => {
                 let (pipes, _) = instruction.get_field_transmisions();
 
@@ -253,7 +250,12 @@ impl CoreRuntime {
             OpCode::NOP => (),
         }
 
-        self.warriors[0].set_instruction_counter(next_instruction);
+        self.warriors[0].set_last_instruction_counter(next_instruction);
+
+        if let OpCode::SPL = instruction.code {
+            println!("creating new thread at: {:?}", field_a_solution);
+            self.warriors[0].new_thread(field_a_solution);
+        }
 
         if die {
             self.warriors[0].kill_thread();
@@ -288,7 +290,7 @@ impl CoreRuntime {
 
     pub(crate) fn print_state(&self, range: Option<std::ops::Range<usize>>) {
         for w in &self.warriors {
-            println!("{}: {:?}", w.name, w.instruction_counters)
+            println!("{}: {:?}", w.name, w.get_counters())
         }
 
         let range = if let Some(range) = range {
