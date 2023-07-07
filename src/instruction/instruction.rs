@@ -114,6 +114,7 @@ impl Instruction {
         }))
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn print_state(&self) {
         self.code.print();
         self.modifier.print();

@@ -270,6 +270,7 @@ impl CoreRuntime {
         self.core[ptr.val].fields[i_field].set_val(data)
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn print_state(&self, range: Option<std::ops::Range<usize>>) {
         for w in &self.warriors {
             println!("{}: {:?}", w.name, w.get_counters())

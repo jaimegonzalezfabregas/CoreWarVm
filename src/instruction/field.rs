@@ -139,6 +139,7 @@ impl Field {
         ret
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn print(&self) {
         match self {
             Field::Direct(x) => print!("{x}"),

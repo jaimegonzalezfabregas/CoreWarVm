@@ -71,6 +71,7 @@ impl OpModifier {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn print(&self) {
         print!(
             "{}",

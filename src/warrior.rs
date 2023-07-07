@@ -86,6 +86,7 @@ impl Warrior {
         })
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn print_state_at(&self, line: usize) {
         for (thread_i, ic) in self.instruction_counters.iter().enumerate() {
             if *ic == line {
