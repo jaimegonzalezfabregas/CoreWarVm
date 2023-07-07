@@ -2,7 +2,7 @@
 
 mod tests {
     use crate::{
-        core::CoreConfig, test::tests::compare_runtime_with_file, utils::ModUsize, warrior::Warrior,
+        core::CoreConfig, utils::ModUsize, warrior::Warrior,
     };
 
     #[test]
