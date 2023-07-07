@@ -5,6 +5,9 @@ pub mod test_imp;
 mod test_imp_wall;
 pub mod test_predecrement;
 mod test_warrior_colision;
+mod test_arithmetic;
+pub mod test_div_cero;
+mod test_mod_cero;
 
 #[cfg(test)]
 mod tests {
@@ -40,7 +43,7 @@ mod tests {
         let res = parse_ares_dump(file_path, runtime.core_size);
 
         for cell_i in 0..runtime.core_size {
-            let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]);
+            let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i].clone());
             let b = res[cell_i];
             if a != b {
                 runtime.print_state(Some(cell_i.max(10) - 10..cell_i + 10));

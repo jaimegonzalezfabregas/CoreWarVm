@@ -1,6 +1,6 @@
 use super::{field::Field, op_code::OpCode, op_modifier::OpModifier};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Instruction {
     pub code: OpCode,
     pub modifier: OpModifier,
@@ -75,7 +75,7 @@ impl Instruction {
             return Ok(None);
         }
 
-        let (code, line) = OpCode::parse(line.into())?;
+        let (code, line) = OpCode::parse(line.clone().into())?;
 
         let line = line.trim_start().to_string();
 

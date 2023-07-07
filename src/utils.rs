@@ -66,7 +66,7 @@ impl Sub for ModUsize {
 
     fn sub(self, rhs: ModUsize) -> Self::Output {
         Self {
-            val: modulo(self.val - rhs.val, self.congruence),
+            val: modulo(self.val as isize - rhs.val as isize, self.congruence),
             congruence: self.congruence,
         }
     }

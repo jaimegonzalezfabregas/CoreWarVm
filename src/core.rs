@@ -31,7 +31,7 @@ impl CoreRuntime {
 
         let instruction_counter = self.warriors[0].get_next_instruction_counter();
 
-        let instruction = *self.get_instruction_at(&instruction_counter);
+        let instruction = self.get_instruction_at(&instruction_counter).clone();
 
         let field_a_solution = instruction.fields[0].solve(self, instruction_counter);
 
@@ -319,7 +319,7 @@ impl CoreConfig {
 
         for (deploy_position, warrior) in self.warrior_data.iter() {
             for (i, op) in warrior.body.iter().enumerate() {
-                core[modulo(deploy_position.val + i, self.core_size)] = *op;
+                core[modulo(deploy_position.val + i, self.core_size)] = op.to_owned();
             }
         }
 
