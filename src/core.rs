@@ -253,7 +253,7 @@ impl CoreRuntime {
         self.warriors[0].set_last_instruction_counter(next_instruction);
 
         if let OpCode::SPL = instruction.code {
-            println!("creating new thread at: {:?}", field_a_solution);
+            // println!("creating new thread at: {:?}", field_a_solution);
             self.warriors[0].new_thread(field_a_solution);
         }
 

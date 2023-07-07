@@ -8,13 +8,11 @@ pub struct Warrior {
     pub name: String,
     pub body: Vec<Instruction>,
     instruction_counters: Vec<ModUsize>,
-    }
+}
 
 impl Warrior {
     pub fn new_thread(&mut self, ptr: ModUsize) {
-        println!("before new thread: {:?}", self.instruction_counters);
         self.instruction_counters.push(ptr);
-        println!("after new thread: {:?}", self.instruction_counters);
     }
 
     pub fn get_counters(&self) -> Vec<ModUsize> {

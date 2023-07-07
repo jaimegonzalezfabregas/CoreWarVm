@@ -3,6 +3,7 @@ mod test_dwarf;
 mod test_imp_wall;
 mod test_normal_run;
 mod test_warrior_colision;
+pub mod test_imp;
 
 #[cfg(test)]
 mod tests {

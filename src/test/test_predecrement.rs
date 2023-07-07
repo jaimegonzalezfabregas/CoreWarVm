@@ -1,46 +1,36 @@
 #[cfg(test)]
 
 mod tests {
-    use core::panic;
-
     use crate::{
         core::CoreConfig,
         instruction::instruction::Instruction,
         test::tests::{parse_ares_dump, ReadOnlyInstruction},
-        warrior::Warrior, utils::ModUsize,
+        warrior::Warrior,
     };
 
     #[test]
-    fn test_dwarf() {
-        let core_size = 8000;
-        let mut core_conf = CoreConfig::new(core_size);
+    fn test_imp() {
+        let mut core_conf = CoreConfig::new(8000);
 
-        let dwarf = match Warrior::parse(
-            "  ADD #4, 3        
-        MOV 2, @2
-        JMP -2, 0
-        DAT #0, #0"
+        let imp = match Warrior::parse(
+            "mov 1, <1
+dat 0, 7"
                 .into(),
-            "Dwarf".into(),
+            "Imp".into(),
             8000,
         ) {
             Ok(res) => res,
             Err(err) => panic!("el parsing del warrior a fallado: {}", err),
         };
 
-        core_conf.deploy(dwarf, Some(ModUsize::new(0, core_size))).unwrap();
+        core_conf.deploy(imp, Some(0)).unwrap();
 
         let mut runtime = core_conf.brawl();
 
-        for _ in 0..((8000 + 3480) / 4 * 3) {
-            runtime.tick();
-        }
-
-        runtime.print_state(None);
+        runtime.tick();
 
         let sim_result = runtime.core;
-
-        let res = parse_ares_dump("src/test/checks/test_dwarf_8610_check.red");
+        let res = parse_ares_dump("src/test/checks/test_predecrement_check.red");
 
         println!("checking len");
         assert_eq!(sim_result.len(), res.len());

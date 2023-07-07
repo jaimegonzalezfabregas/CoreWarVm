@@ -56,19 +56,19 @@ dat 833
             Ok(res) => res,
             Err(err) => panic!("el parsing de mice ha fallado: {}", err),
         };
-
-        core_conf
-            .deploy(mice, Some(ModUsize::new(4073, CORE_SIZE)))
-            .unwrap();
         core_conf
             .deploy(chang, Some(ModUsize::new(0, CORE_SIZE)))
             .unwrap();
 
+        core_conf
+            .deploy(mice, Some(ModUsize::new(4000, CORE_SIZE)))
+            .unwrap();
+
         let mut runtime = core_conf.brawl();
 
-        for i in 0..=11 {
+        for i in 0..=50 {
             println!("check");
-            let res = parse_ares_dump(&format!("src/test/test_chang_vs_mice_{i}_check.red"));
+            let res = parse_ares_dump(&format!("src/test/checks/test_chang_vs_mice_{i}_check.red"));
 
             for cell_i in 0..8000 {
                 let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]);

@@ -31,7 +31,7 @@ mod tests {
         }
 
         let sim_result = runtime.core;
-        let res = parse_ares_dump("src/test/test_impwall_9_check.red");
+        let res = parse_ares_dump("src/test/checks/test_impwall_9_check.red");
 
         println!("checking len");
         assert_eq!(sim_result.len(), res.len());
