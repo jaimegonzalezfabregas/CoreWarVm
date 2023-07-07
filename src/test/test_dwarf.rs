@@ -4,16 +4,13 @@ mod tests {
     use core::panic;
 
     use crate::{
-        core::CoreConfig,
-        instruction::instruction::Instruction,
-        test::tests::{parse_ares_dump, ReadOnlyInstruction},
-        warrior::Warrior, utils::ModUsize,
+        core::CoreConfig, test::tests::compare_runtime_with_file, utils::ModUsize, warrior::Warrior,
     };
 
     #[test]
     fn test_dwarf() {
-        let core_size = 8000;
-        let mut core_conf = CoreConfig::new(core_size);
+        const CORE_SIZE: usize = 8000;
+        let mut core_conf = CoreConfig::new(CORE_SIZE);
 
         let dwarf = match Warrior::parse(
             "  ADD #4, 3        
@@ -22,13 +19,15 @@ mod tests {
         DAT #0, #0"
                 .into(),
             "Dwarf".into(),
-            8000,
+            CORE_SIZE,
         ) {
             Ok(res) => res,
             Err(err) => panic!("el parsing del warrior a fallado: {}", err),
         };
 
-        core_conf.deploy(dwarf, Some(ModUsize::new(0, core_size))).unwrap();
+        core_conf
+            .deploy(dwarf, Some(ModUsize::new(0, CORE_SIZE)))
+            .unwrap();
 
         let mut runtime = core_conf.brawl();
 
@@ -36,22 +35,6 @@ mod tests {
             runtime.tick();
         }
 
-        runtime.print_state(None);
-
-        let sim_result = runtime.core;
-
-        let res = parse_ares_dump("src/test/checks/test_dwarf_8610_check.red");
-
-        println!("checking len");
-        assert_eq!(sim_result.len(), res.len());
-
-        for i in 0..8000 {
-            // println!("checking pos {i} \n{:?}\n{:?}", sim_result[i], res[i]);
-            println!("checking pos {i}");
-            assert_eq!(
-                <Instruction as Into<ReadOnlyInstruction>>::into(sim_result[i]),
-                res[i]
-            );
-        }
+        compare_runtime_with_file("src/test/checks/test_dwarf_8610_check.red", &runtime, "");
     }
 }

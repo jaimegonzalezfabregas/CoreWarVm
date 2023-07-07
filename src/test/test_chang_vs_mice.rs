@@ -4,11 +4,7 @@ mod tests {
     use core::panic;
 
     use crate::{
-        core::CoreConfig,
-        instruction::instruction::Instruction,
-        test::tests::{parse_ares_dump, ReadOnlyInstruction},
-        utils::ModUsize,
-        warrior::Warrior,
+        core::CoreConfig, test::tests::compare_runtime_with_file, utils::ModUsize, warrior::Warrior,
     };
 
     #[test]
@@ -68,21 +64,22 @@ dat 833
 
         for i in 0..=50 {
             println!("check");
-            let res = parse_ares_dump(&format!("src/test/checks/test_chang_vs_mice_{i}_check.red"));
+            compare_runtime_with_file(
+                &format!("src/test/checks/test_chang_vs_mice_{i}_check.red"),
+                &runtime,
+                &format!("tick {i}"),
+            );
 
-            for cell_i in 0..8000 {
-                let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]);
-                let b = res[cell_i];
-                if a != b {
-                    runtime.print_state(Some(cell_i.max(10) - 10..cell_i + 10));
-
-                    panic!("checking pos {cell_i} at tick {i}: \n{a:?} \n!= \n{b:?}\n");
-                }
-            }
             println!("step");
 
             runtime.tick();
             runtime.tick();
+            if i == 20 {
+                runtime.tick();
+                runtime.tick();
+                runtime.tick();
+                runtime.tick();
+            }
         }
     }
 }

@@ -122,4 +122,8 @@ impl Instruction {
         print!(" ");
         self.fields[1].print();
     }
+
+    pub(crate) fn get_field(&self, i: usize) -> Field {
+        self.fields[i]
+    }
 }

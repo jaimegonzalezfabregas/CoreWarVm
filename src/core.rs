@@ -34,7 +34,12 @@ impl CoreRuntime {
         let instruction = *self.get_instruction_at(&instruction_counter);
 
         let field_a_solution = instruction.fields[0].solve(self, instruction_counter);
+
+        let instruction_a = self.get_instruction_at(&field_a_solution).clone();
+
         let field_b_solution = instruction.fields[1].solve(self, instruction_counter);
+
+        let instruction_b = self.get_instruction_at(&field_b_solution).clone();
 
         print!("warrior {} is going to execute ", self.warriors[0].name);
 
@@ -53,88 +58,69 @@ impl CoreRuntime {
                 die = true;
             }
             OpCode::MOV => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, i_flag) = instruction.get_field_transmisions();
 
                 if i_flag {
-                    let instruction = self.get_instruction_at(&src);
-                    self.set_instruction_at(&dst, instruction.clone());
+                    self.set_instruction_at(&field_b_solution, instruction_a);
                 } else {
                     for (i_src, i_dst) in pipes {
-                        let data = *self.get_field(&src, i_src);
-                        self.write_field(&dst, i_dst, data);
+                        let data = instruction_a.get_field(i_src);
+                        self.write_field_val(&field_b_solution, i_dst, *data.get_val());
                     }
                 }
             }
             OpCode::ADD => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
                     // println!("[debug]: pipe from {} to {} ", i_src, i_dst);
-                    let operand = *self.get_field(&src, i_src);
-                    let old_value = *self.get_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value + operand);
+                    let operand = *instruction_a.get_field(i_src).get_val();
+                    let old_value = *instruction_b.get_field(i_dst).get_val();
+                    self.write_field_val(&field_b_solution, i_dst, old_value + operand);
                 }
             }
             OpCode::SUB => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = *self.get_field(&src, i_src);
-                    let old_value = *self.get_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value - operand);
+                    let operand = *instruction_a.get_field(i_src).get_val();
+                    let old_value = *instruction_b.get_field(i_dst).get_val();
+                    self.write_field_val(&field_b_solution, i_dst, old_value - operand);
                 }
             }
             OpCode::MUL => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = *self.get_field(&src, i_src);
-                    let old_value = *self.get_field(&dst, i_dst);
-                    self.write_field(&dst, i_dst, old_value * operand);
+                    let operand = *instruction_a.get_field(i_src).get_val();
+                    let old_value = *instruction_b.get_field(i_dst).get_val();
+                    self.write_field_val(&field_b_solution, i_dst, old_value * operand);
                 }
             }
             OpCode::DIV => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = *self.get_field(&src, i_src);
-                    let old_value = *self.get_field(&dst, i_dst);
+                    let operand = *instruction_a.get_field(i_src).get_val();
+                    let old_value = *instruction_b.get_field(i_dst).get_val();
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(&dst, i_dst, old_value / operand);
+                        self.write_field_val(&field_b_solution, i_dst, old_value / operand);
                     }
                 }
             }
             OpCode::MOD => {
-                let src = field_a_solution;
-                let dst = field_b_solution;
-
                 let (pipes, _) = instruction.get_field_transmisions();
 
                 for (i_src, i_dst) in pipes {
-                    let operand = *self.get_field(&src, i_src);
-                    let old_value = *self.get_field(&dst, i_dst);
+                    let operand = *instruction_a.get_field(i_src).get_val();
+                    let old_value = *instruction_b.get_field(i_dst).get_val();
                     if operand == 0 {
                         die = true;
                     } else {
-                        self.write_field(
-                            &dst,
+                        self.write_field_val(
+                            &field_b_solution,
                             i_dst,
                             ModUsize::new(
                                 old_value.val as isize % operand.val as isize,
@@ -151,7 +137,7 @@ impl CoreRuntime {
                 let mut jump = true;
 
                 for (_, i_dst) in pipes {
-                    if *self.get_field(&field_b_solution, i_dst) != 0 {
+                    if *instruction_b.get_field(i_dst).get_val() != 0 {
                         jump = false;
                     }
                 }
@@ -166,7 +152,7 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (_, i_dst) in pipes {
-                    if *self.get_field(&field_b_solution, i_dst) != 0 {
+                    if *instruction_b.get_field(i_dst).get_val() != 0 {
                         jump = true;
                     }
                 }
@@ -181,8 +167,8 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (_, i_dst) in pipes {
-                    let val = *self.get_field(&field_b_solution, i_dst) - 1 as usize;
-                    self.write_field(&field_b_solution, i_dst, val);
+                    let val = *instruction_b.get_field(i_dst).get_val() - 1 as usize;
+                    self.write_field_val(&field_b_solution, i_dst, val);
 
                     if val != 0 {
                         jump = true;
@@ -200,9 +186,9 @@ impl CoreRuntime {
                 let mut jump = true;
 
                 for (i_src, i_dst) in pipes {
-                    if self.get_field(&field_b_solution, i_dst)
-                        != self.get_field(&field_a_solution, i_src)
-                    {
+                    let a = *instruction_a.get_field(i_src).get_val();
+                    let b = *instruction_b.get_field(i_dst).get_val();
+                    if a != b {
                         jump = false;
                     }
                 }
@@ -217,9 +203,9 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (i_src, i_dst) in pipes {
-                    if self.get_field(&field_b_solution, i_dst)
-                        != self.get_field(&field_a_solution, i_src)
-                    {
+                    let a = *instruction_a.get_field(i_src).get_val();
+                    let b = *instruction_b.get_field(i_dst).get_val();
+                    if a != b {
                         jump = true;
                     }
                 }
@@ -234,9 +220,9 @@ impl CoreRuntime {
                 let mut jump = false;
 
                 for (i_src, i_dst) in pipes {
-                    if self.get_field(&field_a_solution, i_src).val
-                        < self.get_field(&field_b_solution, i_dst).val
-                    {
+                    let a = *instruction_a.get_field(i_src).get_val();
+                    let b = *instruction_b.get_field(i_dst).get_val();
+                    if a.val < b.val {
                         jump = true;
                     }
                 }
@@ -280,11 +266,7 @@ impl CoreRuntime {
         self.core[ptr.val] = instruction;
     }
 
-    fn get_field(&self, ptr: &ModUsize, i_field: usize) -> &ModUsize {
-        self.core[ptr.val].fields[i_field].get_val()
-    }
-
-    fn write_field(&mut self, ptr: &ModUsize, i_field: usize, data: ModUsize) {
+    fn write_field_val(&mut self, ptr: &ModUsize, i_field: usize, data: ModUsize) {
         self.core[ptr.val].fields[i_field].set_val(data)
     }
 

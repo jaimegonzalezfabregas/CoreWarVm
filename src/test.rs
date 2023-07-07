@@ -1,19 +1,21 @@
 pub mod test_chang_vs_mice;
+pub mod test_death;
 mod test_dwarf;
-mod test_imp_wall;
-mod test_normal_run;
-mod test_warrior_colision;
 pub mod test_imp;
+mod test_imp_wall;
+pub mod test_predecrement;
+mod test_warrior_colision;
 
 #[cfg(test)]
 mod tests {
 
     use std::fs;
 
+    use crate::core::CoreRuntime;
     use crate::instruction::instruction::Instruction;
     use crate::instruction::{op_code::OpCode, op_modifier::OpModifier};
 
-    pub fn parse_ares_dump(file_path: &str) -> Vec<ReadOnlyInstruction> {
+    pub fn parse_ares_dump(file_path: &str, core_size: usize) -> Vec<ReadOnlyInstruction> {
         let contents = fs::read_to_string(file_path).unwrap();
 
         let mut ret = vec![];
@@ -21,7 +23,7 @@ mod tests {
         let str = contents.to_uppercase();
 
         for (i, line) in str.split('\n').enumerate() {
-            match ReadOnlyInstruction::parse(line.into(), 8000) {
+            match ReadOnlyInstruction::parse(line.into(), core_size) {
                 Ok(None) => (),
                 Ok(Some(op)) => ret.push(op),
                 Err(err) => panic!(
@@ -32,6 +34,20 @@ mod tests {
         }
 
         ret
+    }
+
+    pub fn compare_runtime_with_file(file_path: &str, runtime: &CoreRuntime, note: &str) {
+        let res = parse_ares_dump(file_path, runtime.core_size);
+
+        for cell_i in 0..runtime.core_size {
+            let a = <Instruction as Into<ReadOnlyInstruction>>::into(runtime.core[cell_i]);
+            let b = res[cell_i];
+            if a != b {
+                runtime.print_state(Some(cell_i.max(10) - 10..cell_i + 10));
+
+                panic!("[{}]: checking pos {cell_i}: \n{a:?} \n!= \n{b:?}\n", note);
+            }
+        }
     }
 
     use crate::instruction::field::Field;

@@ -1,6 +1,5 @@
 use rand::seq::SliceRandom;
 
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Decrement {
     None,
