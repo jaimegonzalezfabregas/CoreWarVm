@@ -2,6 +2,8 @@ use super::{field::Field, op_code::OpCode, op_modifier::OpModifier};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Instruction {
+    pub ptr_range: usize,
+    pub core_size: usize,
     pub code: OpCode,
     pub modifier: OpModifier,
     pub fields: [Field; 2],
@@ -10,6 +12,8 @@ pub struct Instruction {
 impl Instruction {
     pub fn get_random(ptr_range: usize, core_size: usize) -> Self {
         Self {
+            core_size,
+            ptr_range,
             code: OpCode::get_random(),
             modifier: OpModifier::get_random(),
             fields: [
@@ -108,6 +112,8 @@ impl Instruction {
         };
 
         Ok(Some(Self {
+            core_size,
+            ptr_range: core_size,
             code,
             modifier,
             fields: [a, b],
@@ -120,11 +126,15 @@ impl Instruction {
         self.modifier.print();
         print!(" ");
         self.fields[0].print();
-        print!(" ");
+        print!(", ");
         self.fields[1].print();
     }
 
     pub(crate) fn get_field(&self, i: usize) -> Field {
         self.fields[i]
+    }
+
+    pub(crate) fn mutate(&mut self) {
+        *self = Self::get_random(self.ptr_range, self.core_size)
     }
 }

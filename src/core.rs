@@ -41,11 +41,11 @@ impl CoreRuntime {
 
         let instruction_b = self.get_instruction_at(&field_b_solution).clone();
 
-        print!("warrior {} is going to execute ", self.warriors[0].name);
+        // print!("warrior {} is going to execute ", self.warriors[0].name);
 
-        instruction.print_state();
+        // instruction.print_state();
 
-        println!("");
+        // println!("");
 
         let mut die = false;
 
@@ -284,7 +284,7 @@ impl CoreRuntime {
 
         for (i, cell) in self.core.iter().enumerate() {
             if range.contains(&i) {
-                print!("{i:0>6}: ");
+                //print!("{i:0>6}: ");
                 cell.print_state();
                 for warr in self.warriors.iter() {
                     warr.print_state_at(i);
@@ -307,6 +307,8 @@ impl CoreConfig {
     pub fn brawl(&self) -> CoreRuntime {
         let mut core = vec![
             Instruction {
+                ptr_range: 0,
+                core_size: 0,
                 code: OpCode::DAT,
                 fields: [
                     Field::Direct(ModUsize::new(0, self.core_size)),
@@ -323,7 +325,7 @@ impl CoreConfig {
             }
         }
 
-        println!("BRAAAAWL!");
+        // println!("BRAAAAWL!");
 
         CoreRuntime {
             core_size: self.core_size,

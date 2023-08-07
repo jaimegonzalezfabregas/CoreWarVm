@@ -4,68 +4,94 @@ mod test;
 mod utils;
 mod warrior;
 
-use std::process::Command;
-
 use utils::ModUsize;
+use warrior::Warrior;
 
-const CORE_SIZE: usize = 40;
+const CORE_SIZE: usize = 8000;
 
-const TEST_MODE: bool = true;
+const POOL_SIZE: usize = 10;
+
+const ROUNDS: usize = 100;
 
 fn main() -> Result<(), String> {
-    let mut core_conf = core::CoreConfig::new(CORE_SIZE);
+    let mut pool: Vec<Warrior> = (0..POOL_SIZE)
+        .map(|_| Warrior::random_create(20, CORE_SIZE))
+        .collect();
 
-    if TEST_MODE {
-        let _imp = warrior::Warrior::parse("MOV 0, 1".into(), "Imp".into(), CORE_SIZE)?;
-        let _dwarf = warrior::Warrior::parse(
-            "  ADD #4, 3        
-        MOV 2, @2
-        JMP -2, 0
-        DAT #0, #0"
-                .into(),
-            "Dwarf".into(),
-            CORE_SIZE,
-        )?;
-        let _chang = warrior::Warrior::parse(
-            "jmp 4
-mov 2, -1
-jmp -1
-dat 9
-spl -2
-spl 4
-add #-16, -3
-mov -4, @-4
-jmp -4
-spl 2
-jmp -1
-mov 0, 1"
-                .into(),
-            "Chang1".into(),
-            CORE_SIZE,
-        )?;
+    for _ in 0..ROUNDS {
+        let mut scores = [0; POOL_SIZE];
 
-        core_conf.deploy(_chang, Some(ModUsize::new(0, CORE_SIZE)))?;
-    } else {
-        let warrior_a = warrior::Warrior::random_create(14, CORE_SIZE);
-        let warrior_b = warrior::Warrior::random_create(14, CORE_SIZE);
+        for (a, template_warr_a) in pool.iter().enumerate() {
+            for (b, template_warr_b) in pool.iter().enumerate() {
+                let warr_a = template_warr_a.to_owned();
+                let warr_b = template_warr_b.to_owned();
 
-        core_conf.deploy(warrior_a, None)?;
-        core_conf.deploy(warrior_b, None)?;
-    }
+                if warr_a != warr_b {
+                    let op_winner = decide_winner(warr_a.to_owned(), warr_b.to_owned(), 1000);
+                    match op_winner {
+                        Some(winner) => {
+                            if winner == warr_a {
+                                scores[a] += 1
+                            } else {
+                                scores[b] += 1
+                            }
+                        }
+                        None => (),
+                    }
+                }
+            }
+        }
 
-    let mut runtime = core_conf.brawl();
+        let mut scored_pool: Vec<(i32, Warrior)> = scores
+            .iter()
+            .zip(pool.iter())
+            .map(|(a, b)| (a.to_owned(), b.to_owned()))
+            .collect();
 
-    // println!("{:#?}", runtime);
+        scored_pool.sort_by_key(|(k, _)| k.to_owned());
 
-    for _ in 0..20 {
-        runtime.tick();
-        println!("state:");
-        runtime.print_state(None);
-        let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
-        if runtime.done() {
-            break;
+        for i in 0..POOL_SIZE / 2 {
+            if POOL_SIZE / 2 + i < pool.len() {
+                pool[POOL_SIZE / 2 + i] = pool[i].mutate();
+            }
         }
     }
 
+    let result = pool[0].clone();
+
+    let result_len = result.body.len();
+
+    let mut core_conf = core::CoreConfig::new(result_len);
+    let _ = core_conf.deploy(
+        result,
+        Some(ModUsize {
+            congruence: result_len,
+            val: 0,
+        }),
+    );
+    
+    core_conf.brawl().print_state(None);
+
     Ok(())
+}
+
+fn decide_winner(
+    a: warrior::Warrior,
+    b: warrior::Warrior,
+    max_t: usize,
+) -> Option<warrior::Warrior> {
+    let mut core_conf = core::CoreConfig::new(CORE_SIZE);
+    let _ = core_conf.deploy(a, None);
+    let _ = core_conf.deploy(b, None);
+
+    let mut runtime = core_conf.brawl();
+
+    for _ in 0..max_t {
+        runtime.tick();
+        if runtime.warriors.len() == 1 {
+            return Some(runtime.warriors[0].clone());
+        }
+    }
+
+    None
 }

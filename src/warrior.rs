@@ -1,8 +1,9 @@
 use rand::Rng;
 
 use crate::{instruction::instruction::Instruction, utils::ModUsize};
+    use rand::prelude::SliceRandom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Warrior {
     pub org: usize,
     pub name: String,
@@ -23,18 +24,18 @@ impl Warrior {
         let mut body = vec![];
 
         for _ in 0..size {
-            println!("creating random instruction");
+            // println!("creating random instruction");
 
             let inst = Instruction::get_random(size, core_size);
 
-            println!("{inst:?}");
+            // println!("{inst:?}");
 
             body.push(inst)
         }
 
         let org = rand::thread_rng().gen_range(0..size);
 
-        println!("\n\norg:{org}\n\n");
+        // println!("\n\norg:{org}\n\n");
 
         Warrior {
             org,
@@ -102,5 +103,14 @@ impl Warrior {
 
     pub(crate) fn dead(&self) -> bool {
         self.instruction_counters.len() == 0
+    }
+
+
+    pub(crate) fn mutate(&self) -> Warrior {
+        let mut offspring = self.clone();
+
+        offspring.body.choose_mut(&mut rand::thread_rng()).unwrap().mutate();
+
+        offspring
     }
 }
